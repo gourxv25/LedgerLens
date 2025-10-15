@@ -48,6 +48,7 @@ public class TransactionServiceImp implements TransactionService {
                     .document(document)
                     .paymentMethod(createTransactionDto.getPaymentMethod())
                     .invoiceNumber(createTransactionDto.getInvoiceNumber())
+                    .documentPublicId(document.getPublicId())
                     .build();
 
             // Step 4: Save the transaction and the return the persisted entity
@@ -76,6 +77,7 @@ public class TransactionServiceImp implements TransactionService {
                     .invoiceNumber(createTransactionDto.getInvoiceNumber())
                     .notes(createTransactionDto.getNotes())
                     .build();
+            System.out.println(transaction);
 
             return transactionRepository.save(transaction);
         }

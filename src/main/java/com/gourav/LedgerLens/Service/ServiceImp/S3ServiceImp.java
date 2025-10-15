@@ -2,8 +2,11 @@ package com.gourav.LedgerLens.Service.ServiceImp;
 
 import org.springframework.stereotype.Service;
 
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -37,6 +40,16 @@ public class S3ServiceImp implements S3Service {
                     RequestBody.fromBytes(file.getBytes()));
 
         return s3Client.utilities().getUrl(builder -> builder.bucket(bucketName).key(key)).toString();
+    }
+
+    @Override
+    public byte[] viewFile(String s3Key) throws IOException {
+        GetObjectRequest objectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(s3Key)
+                .build();
+      ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(objectRequest);
+        return objectBytes.asByteArray();
     }
 
 }

@@ -20,11 +20,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Entity
 @Table(name="documents")
@@ -33,11 +29,15 @@ import lombok.Setter;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = {"transaction", "user"})
 public class Document {
 
     @Id
     @GeneratedValue(strategy=GenerationType.UUID)
     private UUID id;
+
+    @Column(unique = true, updatable = false, nullable = false)
+    private String publicId = UUID.randomUUID().toString();
 
     @Column(nullable=false)
     private String s3Key; // S3 URL
@@ -66,18 +66,10 @@ public class Document {
 
     @PrePersist
     protected void onCreate() {
+        if (this.publicId == null) {
+            this.publicId = UUID.randomUUID().toString();
+        }
         this.createdAt = LocalDateTime.now();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
-        Document document = (Document) o;
-        return Objects.equals(id, document.id) && Objects.equals(s3Key, document.s3Key) && Objects.equals(originalFileName, document.originalFileName) && status == document.status && Objects.equals(errorMessage, document.errorMessage) && Objects.equals(user, document.user) && Objects.equals(transaction, document.transaction) && Objects.equals(createdAt, document.createdAt) && Objects.equals(failureReason, document.failureReason);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, s3Key, originalFileName, status, errorMessage, user, transaction, createdAt, failureReason);
-    }
 }

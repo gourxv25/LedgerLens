@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class TransactionResponseDto {
 
     private String client;
+    private String publicId;
     private LocalDate txnDate;
     private BigDecimal amountBeforeTax;
     private BigDecimal amountAfterTax;
@@ -25,5 +26,6 @@ public class TransactionResponseDto {
     private String notes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String documentPublicId;
 
 }

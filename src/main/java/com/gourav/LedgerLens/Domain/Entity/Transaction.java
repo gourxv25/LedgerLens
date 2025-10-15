@@ -26,6 +26,9 @@ public class Transaction {
     @Column(length=150)
     private String Client;
 
+    @Column(unique = true, updatable = false, nullable = false)
+    private String publicId = UUID.randomUUID().toString();
+
     @Column(nullable=false)
     private LocalDate txnDate;
 
@@ -58,6 +61,8 @@ public class Transaction {
 
     private String notes;
 
+    private String documentPublicId;
+
     @Column(nullable=false, updatable=false)
     private LocalDateTime createdAt;
 
@@ -65,6 +70,9 @@ public class Transaction {
 
     @PrePersist
     protected void onCreate() {
+        if(this.publicId == null){
+            this.publicId = UUID.randomUUID().toString();
+        }
         this.createdAt = LocalDateTime.now();
     }
 

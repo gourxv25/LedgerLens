@@ -10,11 +10,13 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.gourav.LedgerLens.Repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,6 +56,8 @@ public class DocumentServiceImp implements DocumentService {
                 .user(loggedInUser)
                 .status(processingStatus.PROCESSING)
                 .build();
+
+        System.out.println(document);
 
         Document savedDocument = documentRepository.save(document);
 
@@ -132,6 +136,24 @@ public class DocumentServiceImp implements DocumentService {
            return transactionService.createTransactionFromJson(jsonResponse, loggedInUser, document);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<Document> getAllDocument() {
+        List<Document> docs =  documentRepository.findAll();
+        return docs;
+    }
+
+    @Override
+    public byte[] viewDocument(String publicId) {
+        Document document = documentRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new EntityNotFoundException("Document not found with public ID: " + publicId));
+
+        try {
+            return s3Service.viewFile(document.getS3Key());
+        } catch (IOException e) {
+            throw new RuntimeException("Error retrieving file from S3", e);
         }
     }
 
