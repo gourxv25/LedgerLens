@@ -5,7 +5,6 @@ import com.gourav.LedgerLens.Domain.Dtos.TransactionResponseDto;
 import com.gourav.LedgerLens.Domain.Entity.Transaction;
 import com.gourav.LedgerLens.Domain.Entity.User;
 import com.gourav.LedgerLens.Mapper.TransactionMapper;
-import com.gourav.LedgerLens.Repository.TransactionRepository;
 import com.gourav.LedgerLens.Service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,28 +42,40 @@ public class TransactionalController {
                     return ResponseEntity.ok(responseDtos);
     }
 
-    @GetMapping("/getTransactionById/{id}")
-    public ResponseEntity<TransactionResponseDto> getTransactionById(@PathVariable UUID id,
+    @GetMapping("/getTransactionById/{publicId}")
+    public ResponseEntity<TransactionResponseDto> getTransactionById(@PathVariable String publicId,
                                                                      @AuthenticationPrincipal(expression="user") User loggedInUser) {
-        Transaction transaction = transactionService.getTransactionById(id, loggedInUser);
+        Transaction transaction = transactionService.getTransactionById(publicId, loggedInUser);
         TransactionResponseDto responseDto = transactionMapper.toDto(transaction);
         return ResponseEntity.ok(responseDto);
     }
 
-    @PutMapping("/updateTransaction/{id}")
-    public ResponseEntity<TransactionResponseDto> updateTransaction(@PathVariable UUID id,
+    @PutMapping("/updateTransaction/{publicId}")
+    public ResponseEntity<TransactionResponseDto> updateTransaction(@PathVariable String publicId,
                                                                     @RequestBody CreateTransactionDto createTransactionDto,
                                                                     @AuthenticationPrincipal(expression="user") User loggedInUser) {
-        Transaction updatedTransaction = transactionService.updateTransaction(id, createTransactionDto,loggedInUser);
+        Transaction updatedTransaction = transactionService.updateTransaction(publicId, createTransactionDto,loggedInUser);
         TransactionResponseDto updatedTransactionDto = transactionMapper.toDto(updatedTransaction);
         return ResponseEntity.ok(updatedTransactionDto);
     }
 
-    @DeleteMapping("/deleteTransaction/{id}")
-    public ResponseEntity<String> deleteTransaction(@PathVariable UUID id,
+    @DeleteMapping("/deleteTransaction/{publicId}")
+    public ResponseEntity<String> deleteTransaction(@PathVariable String publicId,
                                                     @AuthenticationPrincipal(expression="user") User loggedInUser) {
-        transactionService.deleteTransaction(id, loggedInUser);
+        transactionService.deleteTransaction(publicId, loggedInUser);
         return ResponseEntity.ok("Transaction deleted successfully");
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<List<TransactionResponseDto>> getTransactionByCategory(@RequestParam("category") String categoryKeyword,
+                                                                @AuthenticationPrincipal(expression="user") User loggedInUser){
+        {
+            List<Transaction> transactions = transactionService.getTransactionByCategory(categoryKeyword, loggedInUser);
+            List<TransactionResponseDto> responseDtos = transactions.stream()
+                                .map(transactionMapper::toDto)
+                                 .toList();
+            return ResponseEntity.ok(responseDtos);
+        }
     }
 
 

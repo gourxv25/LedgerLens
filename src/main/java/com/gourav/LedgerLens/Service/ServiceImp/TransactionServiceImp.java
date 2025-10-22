@@ -1,5 +1,7 @@
 package com.gourav.LedgerLens.Service.ServiceImp;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gourav.LedgerLens.Domain.Dtos.CreateTransactionDto;
 import com.gourav.LedgerLens.Domain.Entity.Document;
@@ -12,6 +14,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -63,7 +66,6 @@ public class TransactionServiceImp implements TransactionService {
 
             validateTransactionDto(createTransactionDto);
 
-       try {
             Transaction transaction = Transaction.builder()
                     .Client(createTransactionDto.getClient())
                     .txnDate(createTransactionDto.getTxnDate())
@@ -77,40 +79,20 @@ public class TransactionServiceImp implements TransactionService {
                     .invoiceNumber(createTransactionDto.getInvoiceNumber())
                     .notes(createTransactionDto.getNotes())
                     .build();
-            System.out.println(transaction);
 
             return transactionRepository.save(transaction);
-        }
-       catch (RuntimeException e){
-           throw new RuntimeException("Error creating transaction", e);
-       }
     }
 
     @Override
     public List<Transaction> getAllTransactionsForUser(User loggedInUser) {
-        try{
-            List<Transaction> transactions = transactionRepository.findByUser(loggedInUser);
-
-            return transactions;
-        }catch (IllegalArgumentException e){
-            throw new IllegalArgumentException();
-        }catch (EntityNotFoundException e){
-            throw new EntityNotFoundException("Transaction not found. ", e);
-        }catch (SecurityException e){
-            throw new SecurityException("Access denied. Transaction does not belong to the logged-in user.", e);
-        }
+        return transactionRepository.findByUser(loggedInUser);
     }
 
     @Override
-    public Transaction updateTransaction(UUID id, CreateTransactionDto createTransactionDto, User loggedInUser) {
+    public Transaction updateTransaction(String publicId, CreateTransactionDto createTransactionDto, User loggedInUser) {
         try{
-            Transaction existingTransaction = transactionRepository.findByIdAndUser(id, loggedInUser)
-                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found with id: " + id));
-
-            // Ensure the transaction belongs to the logged-in user
-            if (!existingTransaction.getUser().getId().equals(loggedInUser.getId())) {
-                throw new SecurityException("Access denied. Transaction does not belong to the logged-in user.");
-            }
+            Transaction existingTransaction = transactionRepository.findByPublicIdAndUser(publicId, loggedInUser)
+                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found with id: " + publicId));
 
             // Update fields if they are provided in the DTO
             if (createTransactionDto.getClient() != null) {
@@ -147,9 +129,7 @@ public class TransactionServiceImp implements TransactionService {
             // Save and return the updated transaction
             return transactionRepository.save(existingTransaction);
         }catch (IllegalArgumentException e){
-            throw new IllegalArgumentException("Invalid UUID string: " + id, e);
-        }catch (EntityNotFoundException e){
-            throw new EntityNotFoundException("Transaction not found with id: " + id, e);
+            throw new IllegalArgumentException("Invalid UUID string: " + publicId, e);
         }catch (SecurityException e){
             throw new SecurityException("Access denied. Transaction does not belong to the logged-in user.", e);
         }
@@ -157,41 +137,49 @@ public class TransactionServiceImp implements TransactionService {
     }
 
     @Override
-    public Transaction getTransactionById(UUID id, User loggedInUser) {
-        try{
-            Transaction transaction = transactionRepository.findByIdAndUser(id, loggedInUser)
-                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found with id: " + id));
+    public Transaction getTransactionById(String publicId, User loggedInUser) {
 
-            // Ensure the transaction belongs to the logged-in user
-            if (!transaction.getUser().getId().equals(loggedInUser.getId())) {
-                throw new SecurityException("Access denied. Transaction does not belong to the logged-in user.");
-            }
-
-            return transaction;
-        }catch (IllegalArgumentException e){
-            throw new IllegalArgumentException("Invalid UUID string: " + id, e);
-        }catch (EntityNotFoundException e){
-            throw new EntityNotFoundException("Transaction not found with id: " + id, e);
-        }catch (SecurityException e){
-            throw new SecurityException("Access denied. Transaction does not belong to the logged-in user.", e);
-        }
+          return transactionRepository.findByPublicIdAndUser(publicId, loggedInUser)
+                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found with id: " + publicId));
     }
 
     @Override
-    public void deleteTransaction(UUID id, User loggedInUser) {
-        try{
-            Transaction transaction = transactionRepository.findByIdAndUser(id, loggedInUser)
-                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found with id: " + id));
+    public void deleteTransaction(String publicId, User loggedInUser) {
 
-            // Ensure the transaction belongs to the logged-in user
-            if (!transaction.getUser().getId().equals(loggedInUser.getId())) {
-                throw new SecurityException("Access denied. Transaction does not belong to the logged-in user.");
-            }
+            Transaction transaction = transactionRepository.findByPublicIdAndUser(publicId, loggedInUser)
+                    .orElseThrow(() -> new EntityNotFoundException("Transaction not found with id: " + publicId));
 
             transactionRepository.delete(transaction);
-        }catch (IllegalArgumentException e){
-            throw new IllegalArgumentException("Invalid UUID string: " + id, e);
-        }
+    }
+
+    @Override
+    public List<Transaction> getTransactionByCategory(String categoryKeyword, User loggedInUser) {
+
+       return transactionRepository.findByCategoryKeywordAndUser(categoryKeyword, loggedInUser);
+    }
+
+    @Override
+    public List<Transaction> createTransactionServiceFromJsonArray(String jsonArrayStr, User user, Document document) {
+         List<Transaction> transactions = new ArrayList<>();
+         try {
+             JsonNode root = objectMapper.readTree(jsonArrayStr);
+             if(root.isArray()){
+                 for(JsonNode node : root){
+                     Transaction transaction = createTransactionFromJson(node.toString(), user, document);
+                     transactions.add(transaction);
+                 }
+             }else {
+                 Transaction transaction = createTransactionFromJson(jsonArrayStr, user, document);
+                 transactions.add(transaction);
+             }
+         }catch (JsonProcessingException e) {
+             // REFACTOR: Catch a more specific exception and wrap it in a RuntimeException.
+             throw new RuntimeException("Error parsing JSON array", e);
+         } catch (Exception e) {
+             throw new RuntimeException(e);
+         }
+
+        return transactions;
     }
 
 

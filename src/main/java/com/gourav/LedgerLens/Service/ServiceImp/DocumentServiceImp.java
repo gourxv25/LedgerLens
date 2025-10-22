@@ -36,7 +36,7 @@ public class DocumentServiceImp implements DocumentService {
 
     @Override
     @Transactional
-    public Transaction uploadFile(MultipartFile file, User loggedInUser) throws Exception {
+    public List<Transaction> uploadFile(MultipartFile file, User loggedInUser) throws Exception {
 
         if(file.isEmpty()){
             throw new IllegalArgumentException("File is cannot be empty.");
@@ -68,7 +68,7 @@ public class DocumentServiceImp implements DocumentService {
 
     @Async
     @Transactional
-    public Transaction processDocument(UUID documentId, User loggedInUser){
+    public List<Transaction> processDocument(UUID documentId, User loggedInUser){
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("Document not found with ID: " + documentId));
 
@@ -88,11 +88,13 @@ public class DocumentServiceImp implements DocumentService {
             }
 
             // Step 4: Create the transaction
-            Transaction transaction = transactionService.createTransactionFromJson(jsonResponse, document.getUser(), document);
+//            Transaction transaction = transactionService.createTransactionFromJson(jsonResponse, document.getUser(), document);
+            List<Transaction> transactions = transactionService.createTransactionServiceFromJsonArray(jsonResponse, document.getUser(), document);
+
 
             // Step 5: If everything succeeds, update status to COMPLETED
             document.setStatus(processingStatus.COMPLETED);
-            return transaction;
+            return transactions;
 
         } catch (Exception e) {
             document.setStatus(processingStatus.FAILED);
@@ -122,7 +124,7 @@ public class DocumentServiceImp implements DocumentService {
     public Transaction test(User loggedInUser) throws IOException {
         Document document = new Document();
 
-        String s3Key = "1cd81795-9361-486f-a65f-a9ce206c53c2-Receipt-2990-9359.pdf";
+        String s3Key = "b3c948c2-f893-4faa-abfb-e3bb598dd2fc-Invoice001.pdf";
 
         String extractedText = textExtractService.extractTextFromS3File(bucketName, s3Key);
 

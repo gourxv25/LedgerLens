@@ -13,7 +13,7 @@ import java.util.List;
 
 public interface DocumentService {
 
-    Transaction uploadFile(MultipartFile file, User loggedInUser) throws Exception;
+    List<Transaction> uploadFile(MultipartFile file, User loggedInUser) throws Exception;
     Transaction test(User loggedInUser) throws IOException;
 
     List<Document> getAllDocument();

@@ -41,8 +41,7 @@ public class Transaction {
     @Column(length=10)
     private String currency; // USD, EUR
 
-    @ManyToOne
-    @JoinColumn(name = "document_id")
+    @OneToOne(mappedBy = "transaction", fetch = FetchType.LAZY)
     private Document document;
 
     @ManyToOne(fetch=FetchType.LAZY)

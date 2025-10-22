@@ -15,9 +15,13 @@ public interface TransactionService {
 
     List<Transaction> getAllTransactionsForUser(User loggedInUser);
 
-    Transaction updateTransaction(UUID id, CreateTransactionDto createTransactionDto, User loggedInUser);
+    Transaction updateTransaction(String id, CreateTransactionDto createTransactionDto, User loggedInUser);
 
-    Transaction getTransactionById(UUID id, User loggedInUser);
+    Transaction getTransactionById(String id, User loggedInUser);
 
-    void deleteTransaction(UUID id, User loggedInUser);
+    void deleteTransaction(String id, User loggedInUser);
+
+    List<Transaction> getTransactionByCategory(String category, User loggedInUser);
+
+    List<Transaction> createTransactionServiceFromJsonArray(String jsonResponse, User user, Document document);
 }

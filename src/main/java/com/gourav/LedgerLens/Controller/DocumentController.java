@@ -29,11 +29,11 @@ public class DocumentController {
     private final DocumentMapper documentMapper;
 
     @PostMapping("/upload")
-    public ResponseEntity<TransactionResponseDto> uploadDocument(@RequestParam("file") MultipartFile file,
+    public ResponseEntity<List<TransactionResponseDto>> uploadDocument(@RequestParam("file") MultipartFile file,
                                                 @AuthenticationPrincipal(expression="user") User loggedInUser) throws Exception {
-       Transaction transaction = documentService.uploadFile(file, loggedInUser);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(transactionMapper.toDto(transaction));
+       List<Transaction> transaction = documentService.uploadFile(file, loggedInUser);
+        List<TransactionResponseDto> transactionDtos = transaction.stream().map(transactionMapper::toDto).toList();
+        return ResponseEntity.status(HttpStatus.CREATED).body(transactionDtos);
     }
 
     @GetMapping("/test")
