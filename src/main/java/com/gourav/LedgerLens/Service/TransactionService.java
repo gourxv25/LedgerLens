@@ -4,6 +4,8 @@ import com.gourav.LedgerLens.Domain.Dtos.CreateTransactionDto;
 import com.gourav.LedgerLens.Domain.Entity.Document;
 import com.gourav.LedgerLens.Domain.Entity.Transaction;
 import com.gourav.LedgerLens.Domain.Entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,7 +15,7 @@ public interface TransactionService {
 
     Transaction createTransaction(CreateTransactionDto createTransactionDto, User loggedInUser);
 
-    List<Transaction> getAllTransactionsForUser(User loggedInUser);
+    Page<Transaction> getAllTransactionsForUser(User loggedInUser, Pageable pageable);
 
     Transaction updateTransaction(String id, CreateTransactionDto createTransactionDto, User loggedInUser);
 
@@ -21,7 +23,7 @@ public interface TransactionService {
 
     void deleteTransaction(String id, User loggedInUser);
 
-    List<Transaction> getTransactionByCategory(String category, User loggedInUser);
+    Page<Transaction> getTransactionByCategory(String category, User loggedInUser, Pageable pageable);
 
     List<Transaction> createTransactionServiceFromJsonArray(String jsonResponse, User user, Document document);
 }

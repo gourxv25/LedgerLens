@@ -8,6 +8,9 @@ import com.gourav.LedgerLens.Mapper.TransactionMapper;
 import com.gourav.LedgerLens.Service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -33,11 +36,10 @@ public class TransactionalController {
     }
 
     @GetMapping("/getAllTransactions")
-    public ResponseEntity<List<TransactionResponseDto>> getAllTransactionsWithUser(@AuthenticationPrincipal(expression="user") User loggedInUser) {
-        List<Transaction> transactions = transactionService.getAllTransactionsForUser(loggedInUser);
-        List<TransactionResponseDto> responseDtos = transactions.stream()
-                                                                    .map(transactionMapper::toDto)
-                                                                    .toList();
+    public ResponseEntity<Page<TransactionResponseDto>> getAllTransactionsWithUser(@AuthenticationPrincipal(expression="user") User loggedInUser,
+                                                        @PageableDefault(size = 20, sort="txnDate")Pageable pageable) {
+        Page<Transaction> transactions = transactionService.getAllTransactionsForUser(loggedInUser, pageable);
+        Page<TransactionResponseDto> responseDtos = transactions.map(transactionMapper::toDto);
 
                     return ResponseEntity.ok(responseDtos);
     }
@@ -67,13 +69,12 @@ public class TransactionalController {
     }
 
     @GetMapping("/filter")
-    public ResponseEntity<List<TransactionResponseDto>> getTransactionByCategory(@RequestParam("category") String categoryKeyword,
-                                                                @AuthenticationPrincipal(expression="user") User loggedInUser){
+    public ResponseEntity<Page<TransactionResponseDto>> getTransactionByCategory(@RequestParam("category") String categoryKeyword,
+                                                                                 @AuthenticationPrincipal(expression="user") User loggedInUser,
+                                                                    @PageableDefault(size = 20, sort="txnDate")Pageable pageable){
         {
-            List<Transaction> transactions = transactionService.getTransactionByCategory(categoryKeyword, loggedInUser);
-            List<TransactionResponseDto> responseDtos = transactions.stream()
-                                .map(transactionMapper::toDto)
-                                 .toList();
+            Page<Transaction> transactions = transactionService.getTransactionByCategory(categoryKeyword, loggedInUser, pageable);
+            Page<TransactionResponseDto> responseDtos = transactions.map(transactionMapper::toDto);
             return ResponseEntity.ok(responseDtos);
         }
     }

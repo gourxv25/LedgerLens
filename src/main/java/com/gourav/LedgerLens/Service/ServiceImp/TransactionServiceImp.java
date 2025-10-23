@@ -12,6 +12,8 @@ import com.gourav.LedgerLens.Service.TransactionService;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -84,8 +86,8 @@ public class TransactionServiceImp implements TransactionService {
     }
 
     @Override
-    public List<Transaction> getAllTransactionsForUser(User loggedInUser) {
-        return transactionRepository.findByUser(loggedInUser);
+    public Page<Transaction> getAllTransactionsForUser(User loggedInUser, Pageable pageable) {
+        return transactionRepository.findByUser(loggedInUser, pageable);
     }
 
     @Override
@@ -153,9 +155,9 @@ public class TransactionServiceImp implements TransactionService {
     }
 
     @Override
-    public List<Transaction> getTransactionByCategory(String categoryKeyword, User loggedInUser) {
+    public Page<Transaction> getTransactionByCategory(String categoryKeyword, User loggedInUser, Pageable pageable) {
 
-       return transactionRepository.findByCategoryKeywordAndUser(categoryKeyword, loggedInUser);
+       return transactionRepository.findByCategoryKeywordAndUser(categoryKeyword, loggedInUser, pageable);
     }
 
     @Override

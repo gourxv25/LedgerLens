@@ -9,5 +9,4 @@ public class LedgerLensApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(LedgerLensApplication.class, args);
 	}
-
 }
