@@ -161,17 +161,17 @@ public class TransactionServiceImp implements TransactionService {
     }
 
     @Override
-    public List<Transaction> createTransactionServiceFromJsonArray(String jsonArrayStr, User user, Document document) {
+    public Page<Transaction> createTransactionServiceFromJsonArray(String jsonArrayStr, User loggedInUser, Document document, Pageable pageable) {
          List<Transaction> transactions = new ArrayList<>();
          try {
              JsonNode root = objectMapper.readTree(jsonArrayStr);
              if(root.isArray()){
                  for(JsonNode node : root){
-                     Transaction transaction = createTransactionFromJson(node.toString(), user, document);
+                     Transaction transaction = createTransactionFromJson(node.toString(), loggedInUser, document);
                      transactions.add(transaction);
                  }
              }else {
-                 Transaction transaction = createTransactionFromJson(jsonArrayStr, user, document);
+                 Transaction transaction = createTransactionFromJson(jsonArrayStr, loggedInUser, document);
                  transactions.add(transaction);
              }
          }catch (JsonProcessingException e) {
@@ -181,7 +181,9 @@ public class TransactionServiceImp implements TransactionService {
              throw new RuntimeException(e);
          }
 
-        return transactions;
+         transactionRepository.saveAll(transactions);
+
+        return transactionRepository.findByUser(loggedInUser, pageable);
     }
 
 

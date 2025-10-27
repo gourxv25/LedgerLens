@@ -10,7 +10,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.gourav.LedgerLens.Repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,7 +37,7 @@ public class DocumentServiceImp implements DocumentService {
 
     @Override
     @Transactional
-    public List<Transaction> uploadFile(MultipartFile file, User loggedInUser) throws Exception {
+    public Page<Transaction> uploadFile(MultipartFile file, User loggedInUser, Pageable pageable) throws Exception {
 
         if(file.isEmpty()){
             throw new IllegalArgumentException("File is cannot be empty.");
@@ -62,13 +63,13 @@ public class DocumentServiceImp implements DocumentService {
         Document savedDocument = documentRepository.save(document);
 
         // 3. Trigger the heavy lifting asynchronoulsy
-       return processDocument(savedDocument.getId(), loggedInUser);
+       return processDocument(savedDocument.getId(), loggedInUser, pageable);
 
     }
 
     @Async
     @Transactional
-    public List<Transaction> processDocument(UUID documentId, User loggedInUser){
+    public Page<Transaction> processDocument(UUID documentId, User loggedInUser, Pageable pageable){
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("Document not found with ID: " + documentId));
 
@@ -89,7 +90,7 @@ public class DocumentServiceImp implements DocumentService {
 
             // Step 4: Create the transaction
 //            Transaction transaction = transactionService.createTransactionFromJson(jsonResponse, document.getUser(), document);
-            List<Transaction> transactions = transactionService.createTransactionServiceFromJsonArray(jsonResponse, document.getUser(), document);
+            Page<Transaction> transactions = transactionService.createTransactionServiceFromJsonArray(jsonResponse, document.getUser(), document, pageable);
 
 
             // Step 5: If everything succeeds, update status to COMPLETED

@@ -10,6 +10,9 @@ import com.gourav.LedgerLens.Mapper.DocumentMapper;
 import com.gourav.LedgerLens.Mapper.TransactionMapper;
 import com.gourav.LedgerLens.Service.DocumentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,10 +32,11 @@ public class DocumentController {
     private final DocumentMapper documentMapper;
 
     @PostMapping("/upload")
-    public ResponseEntity<List<TransactionResponseDto>> uploadDocument(@RequestParam("file") MultipartFile file,
-                                                @AuthenticationPrincipal(expression="user") User loggedInUser) throws Exception {
-       List<Transaction> transaction = documentService.uploadFile(file, loggedInUser);
-        List<TransactionResponseDto> transactionDtos = transaction.stream().map(transactionMapper::toDto).toList();
+    public ResponseEntity<Page<TransactionResponseDto>> uploadDocument(@RequestParam("file") MultipartFile file,
+                                                                       @AuthenticationPrincipal(expression="user") User loggedInUser,
+                            @PageableDefault(size=20, sort="txnDate")Pageable pageable) throws Exception {
+       Page<Transaction> transaction = documentService.uploadFile(file, loggedInUser, pageable);
+        Page<TransactionResponseDto> transactionDtos = transaction.map(transactionMapper::toDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionDtos);
     }
 
