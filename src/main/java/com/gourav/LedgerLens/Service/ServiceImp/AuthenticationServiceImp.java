@@ -68,7 +68,7 @@ public class AuthenticationServiceImp implements AuthenticationService {
             log.info("JWT signing key initialized successfully.");
         } catch (IllegalArgumentException e) {
             log.error("Invalid JWT secret configuration", e);
-            throw new RuntimeException("Invalid JWT secret. Please check application configuration.", e);
+            throw new JwtException("Invalid JWT token", e);
         } catch (Exception e) {
             log.error("Unexpected error initializing JWT signing key", e);
             throw new RuntimeException("Failed to initialize JWT signing key.", e);

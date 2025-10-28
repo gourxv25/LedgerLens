@@ -1,5 +1,7 @@
 package com.gourav.LedgerLens.Controller;
 
+import com.gourav.LedgerLens.Domain.Dtos.ApiResponse;
+import com.gourav.LedgerLens.Security.LedgerLensUserDetails;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -19,6 +21,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -29,45 +34,30 @@ public class AuthController {
     private final AuthenticationService authenticationService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request){
-        try{
-            authService.register(request);
-            log.info("User registered successfully with email: {}", request.getEmail());
-            return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
-        }
-        catch(IllegalArgumentException e){
-            log.warn("Registration failed for email: {}. Reason: {}", request.getEmail(), e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-        }
-        catch(Exception e){
-            log.error("Unexpected error during registration for email: {}", request.getEmail(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred. Please try again later.");
-        }
+    public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequest request) {
+        authService.register(request);
+        log.info("User registered successfully: {}", request.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Registered successfully"));
     }
 
+
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request){
-        try{
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request){
+
+
             UserDetails userDetails = authenticationService.authenticate(
                             request.getEmail(),
                              request.getPassword());
 
             String tokenValue = authenticationService.generateToken(userDetails);
+        LedgerLensUserDetails ledgerLensUser = (LedgerLensUserDetails) userDetails;
+        String name = ledgerLensUser.getUser().getFullname();
             AuthResponse response = AuthResponse.builder()
                                     .token(tokenValue)
-                                    .exprireIn(86400L)
+                                    .name(name)
                                     .build();
             log.info("User logged in successfully with email: {}", request.getEmail());
-            return ResponseEntity.ok(response);
-        }
-        catch(BadCredentialsException e){
-            log.warn("Login failed for email: {}. Reason: {}", request.getEmail(), e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        catch(Exception e){
-            log.error("Unexpected error during login for email: {}", request.getEmail(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+            return ResponseEntity.ok(ApiResponse.success("Loggin Successfully", response));
     }
 
 }

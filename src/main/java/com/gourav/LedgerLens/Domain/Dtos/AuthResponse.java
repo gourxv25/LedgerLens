@@ -12,5 +12,5 @@ import lombok.AllArgsConstructor;
 public class AuthResponse {
 
     private String token;
-    private Long exprireIn;
+    private String name;
 }

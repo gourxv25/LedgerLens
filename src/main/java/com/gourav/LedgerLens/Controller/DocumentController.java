@@ -1,5 +1,6 @@
 package com.gourav.LedgerLens.Controller;
 
+import com.gourav.LedgerLens.Domain.Dtos.ApiResponse;
 import com.gourav.LedgerLens.Domain.Dtos.CreateTransactionDto;
 import com.gourav.LedgerLens.Domain.Dtos.DocumentResponseDto;
 import com.gourav.LedgerLens.Domain.Dtos.TransactionResponseDto;
@@ -32,12 +33,12 @@ public class DocumentController {
     private final DocumentMapper documentMapper;
 
     @PostMapping("/upload")
-    public ResponseEntity<Page<TransactionResponseDto>> uploadDocument(@RequestParam("file") MultipartFile file,
-                                                                       @AuthenticationPrincipal(expression="user") User loggedInUser,
-                            @PageableDefault(size=20, sort="txnDate")Pageable pageable) throws Exception {
+    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> uploadDocument(@RequestParam("file") MultipartFile file,
+                                                                                   @AuthenticationPrincipal(expression="user") User loggedInUser,
+                                                                                   @PageableDefault(size=20, sort="txnDate")Pageable pageable) throws Exception {
        Page<Transaction> transaction = documentService.uploadFile(file, loggedInUser, pageable);
-        Page<TransactionResponseDto> transactionDtos = transaction.map(transactionMapper::toDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(transactionDtos);
+        Page<TransactionResponseDto> response = transaction.map(transactionMapper::toDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Document uploaded successfully", response));
     }
 
     @GetMapping("/test")
@@ -47,20 +48,20 @@ public class DocumentController {
     }
 
     @GetMapping()
-    public ResponseEntity<List<DocumentResponseDto>> getAllDocument(){
+    public ResponseEntity<ApiResponse<List<DocumentResponseDto>>> getAllDocument(){
         List<Document> document = documentService.getAllDocument();
         List<DocumentResponseDto> docs = document.stream()
                 .map(documentMapper::toDto)
                 .toList();
-        return ResponseEntity.ok(docs);
+        return ResponseEntity.ok(ApiResponse.success("Document fetched successfully", docs));
     }
 
     @GetMapping("/{publicId}/view")
-    public ResponseEntity<byte[]> viewDocument(@PathVariable String publicId){
+    public ResponseEntity<ApiResponse<byte[]>> viewDocument(@PathVariable String publicId){
         byte[] documentData = documentService.viewDocument(publicId);
         return ResponseEntity.ok()
                 .header("Content-Type", "application/pdf")
-                .body(documentData);
+                .body(ApiResponse.success("Document fetched successfully", documentData));
     }
 
 
