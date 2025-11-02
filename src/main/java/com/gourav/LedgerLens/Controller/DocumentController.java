@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -57,11 +59,26 @@ public class DocumentController {
     }
 
     @GetMapping("/{publicId}/view")
-    public ResponseEntity<ApiResponse<byte[]>> viewDocument(@PathVariable String publicId){
-        byte[] documentData = documentService.viewDocument(publicId);
-        return ResponseEntity.ok()
-                .header("Content-Type", "application/pdf")
-                .body(ApiResponse.success("Document fetched successfully", documentData));
+    public ResponseEntity<?> viewDocument(@PathVariable String publicId){
+        try {
+            byte[] documentData = documentService.viewDocument(publicId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"document.pdf\"");
+
+            // Success: Return the PDF
+            return new ResponseEntity<>(documentData, headers, HttpStatus.OK);
+
+        } catch (Exception ex) {
+
+            // Error: Return your JSON ApiResponse
+            // Here, Spring's default Content-Type (application/json) will be used
+            return new ResponseEntity<>(
+                    ApiResponse.failure("Document not found"),
+                    HttpStatus.NOT_FOUND
+            );
+        }
     }
 
 
