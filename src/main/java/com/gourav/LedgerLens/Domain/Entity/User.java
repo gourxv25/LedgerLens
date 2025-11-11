@@ -1,5 +1,6 @@
 package com.gourav.LedgerLens.Domain.Entity;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
@@ -38,14 +39,23 @@ public class User {
     @Column(nullable=false, unique=true, length=150)
     private String email;
 
-    @Column(nullable=false)
-    private String password;
+    @Column
+    private String password; // keep nullable for OAuth2 users
 
     @Column(length=100)
     private String fullname;
 
     @Column(length = 20)
-    private String role; //USER, ADMIN
+    private String role; // USER, ADMIN
+
+    @Column(name = "provider")
+    private String provider; // google, github, local
+
+    @Column(name = "provider_id", length = 100)
+    private String providerId;
+
+    @Column(name = "auth_type", length = 20)
+    private String authType = "LOCAL";
 
     @Column(nullable = false, updatable=false)
     private LocalDateTime createdAt;
@@ -55,6 +65,21 @@ public class User {
 
     @OneToMany(mappedBy="user", cascade=CascadeType.ALL, orphanRemoval=true)
     private Set<Document> documents;
+
+    @Column(name = "verification_code")
+    private String verificationCode;
+
+    @Column(name = "verification_expiration")
+    private LocalDateTime verificationCodeExpiresAt;
+
+    @Column(length=1024)
+    private String refreshToken;
+
+    private BigInteger lastHistoryId;
+
+
+
+    private boolean enabled;
 
     @PrePersist
     protected void onCreate() {

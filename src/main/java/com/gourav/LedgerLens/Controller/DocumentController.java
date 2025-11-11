@@ -12,6 +12,7 @@ import com.gourav.LedgerLens.Mapper.TransactionMapper;
 import com.gourav.LedgerLens.Service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -35,13 +37,27 @@ public class DocumentController {
     private final DocumentMapper documentMapper;
 
     @PostMapping("/upload")
-    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> uploadDocument(@RequestParam("file") MultipartFile file,
-                                                                                   @AuthenticationPrincipal(expression="user") User loggedInUser,
-                                                                                   @PageableDefault(size=20, sort="txnDate")Pageable pageable) throws Exception {
-       Page<Transaction> transaction = documentService.uploadFile(file, loggedInUser, pageable);
-        Page<TransactionResponseDto> response = transaction.map(transactionMapper::toDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Document uploaded successfully", response));
+    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> uploadDocuments(
+            @RequestParam("files") List<MultipartFile> files,
+            @AuthenticationPrincipal(expression = "user") User loggedInUser,
+            @PageableDefault(size = 20, sort = "txnDate") Pageable pageable
+    ) throws Exception {
+
+        List<Transaction> allTransactions = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            Page<Transaction> transactions = documentService.uploadFile(file, loggedInUser, pageable);
+            allTransactions.addAll(transactions.getContent());
+        }
+
+        Page<TransactionResponseDto> response = new PageImpl<>(allTransactions, pageable, allTransactions.size())
+                .map(transactionMapper::toDto);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Documents uploaded successfully", response));
     }
+
 
     @GetMapping("/test")
     public ResponseEntity<TransactionResponseDto> test(@AuthenticationPrincipal(expression = "user") User loggedInUser) throws IOException {

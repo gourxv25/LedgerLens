@@ -32,7 +32,7 @@ public class DocumentServiceImp implements DocumentService {
     private final GeminiAiService geminiAiService;
     private final TransactionService transactionService;
 
-    @Value("${cloud.aws.s3.bucket}")
+    @Value("${cloudflare.r2.bucket}")
     private String bucketName;
 
     @Override
@@ -67,13 +67,18 @@ public class DocumentServiceImp implements DocumentService {
 
     }
 
-    @Async
     @Transactional
     public Page<Transaction> processDocument(UUID documentId, User loggedInUser, Pageable pageable){
+        System.out.println("--> ProcessDocument");
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("Document not found with ID: " + documentId));
+        System.out.println("Bucket Name: " + bucketName);
+        System.out.println("S3 Key: " + document.getS3Key());
 
         try{
+            System.out.print("try block of processDocument");
+            System.out.println("Bucket Name: " + bucketName);
+            System.out.println("S3 Key: " + document.getS3Key());
 
             // Step 1: Extract text
             String extractedText = textExtractService.extractTextFromS3File(bucketName, document.getS3Key());
@@ -91,10 +96,10 @@ public class DocumentServiceImp implements DocumentService {
             // Step 4: Create the transaction
 //            Transaction transaction = transactionService.createTransactionFromJson(jsonResponse, document.getUser(), document);
             Page<Transaction> transactions = transactionService.createTransactionServiceFromJsonArray(jsonResponse, document.getUser(), document, pageable);
-
+            System.out.println("Transactions created successfully: " + transactions.getContent().size());
 
             // Step 5: If everything succeeds, update status to COMPLETED
-            document.setStatus(processingStatus.COMPLETED);
+            document.setStatus(processingStatus. COMPLETED);
             return transactions;
 
         } catch (Exception e) {

@@ -10,7 +10,9 @@ import com.gourav.LedgerLens.Service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,12 +38,18 @@ public class TransactionalController {
     }
 
     @GetMapping("/getAllTransactions")
-    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> getAllTransactionsWithUser(@AuthenticationPrincipal(expression="user") User loggedInUser,
-                                                        @PageableDefault(size = 20, sort="txnDate")Pageable pageable) {
+    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> getAllTransactionsWithUser(
+            @AuthenticationPrincipal(expression = "user") User loggedInUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "txnDate,desc") String[] sort) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("txnDate").descending());
+
         Page<Transaction> transactions = transactionService.getAllTransactionsForUser(loggedInUser, pageable);
         Page<TransactionResponseDto> response = transactions.map(transactionMapper::toDto);
-        return ResponseEntity
-                .ok(ApiResponse.success("Transactions feched successfully", response));
+
+        return ResponseEntity.ok(ApiResponse.success("Transactions fetched successfully", response));
     }
 
     @GetMapping("/getTransactionById/{publicId}")
@@ -70,14 +78,19 @@ public class TransactionalController {
     }
 
     @GetMapping("/filter")
-    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> getTransactionByCategory(@RequestParam("category") String categoryKeyword,
-                                                                                 @AuthenticationPrincipal(expression="user") User loggedInUser,
-                                                                    @PageableDefault(size = 20, sort="txnDate")Pageable pageable){
-        {
-            Page<Transaction> transactions = transactionService.getTransactionByCategory(categoryKeyword, loggedInUser, pageable);
-            Page<TransactionResponseDto> response = transactions.map(transactionMapper::toDto);
-            return ResponseEntity.ok(ApiResponse.success("Transcations fetch successfully", response));
-        }
+    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> getTransactionByCategory(
+            @RequestParam("category") String categoryKeyword,
+            @AuthenticationPrincipal(expression = "user") User loggedInUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "txnDate,desc") String[] sort) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("txnDate").descending());
+
+        Page<Transaction> transactions = transactionService.getTransactionByCategory(categoryKeyword, loggedInUser, pageable);
+        Page<TransactionResponseDto> response = transactions.map(transactionMapper::toDto);
+
+        return ResponseEntity.ok(ApiResponse.success("Transactions fetched successfully", response));
     }
 
 

@@ -35,9 +35,10 @@ public class TransactionServiceImp implements TransactionService {
 
         // Step 1: Deserialize JSON to DTO
         CreateTransactionDto createTransactionDto = objectMapper.readValue(jsonResponse, CreateTransactionDto.class);
-
         // Step 2: Validate the DTO to ensure the critical fields are not nulls
         validateTransactionDto(createTransactionDto);
+
+        System.out.println("createTransactionDto : " + createTransactionDto);
 
         // Step 3: Build the Transaction Entity from the Dto
         try{
@@ -56,6 +57,7 @@ public class TransactionServiceImp implements TransactionService {
                     .documentPublicId(document.getPublicId())
                     .build();
 
+            System.out.println(("transaction : " + transaction));
             // Step 4: Save the transaction and the return the persisted entity
             return transactionRepository.save(transaction);
         }catch (RuntimeException e){
@@ -181,6 +183,8 @@ public class TransactionServiceImp implements TransactionService {
              throw new RuntimeException(e);
          }
 
+
+         System.out.println("All transactions : " + transactions);
          transactionRepository.saveAll(transactions);
 
         return transactionRepository.findByUser(loggedInUser, pageable);

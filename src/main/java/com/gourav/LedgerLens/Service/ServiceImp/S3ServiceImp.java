@@ -24,7 +24,9 @@ public class S3ServiceImp implements S3Service {
 
     private final S3Client s3Client;
 
-    @Value("${cloud.aws.s3.bucket}")
+//    @Value("${cloud.aws.s3.bucket}")
+//    private String bucketName;
+    @Value("${cloudflare.r2.bucket}")
     private String bucketName;
 
     @Override

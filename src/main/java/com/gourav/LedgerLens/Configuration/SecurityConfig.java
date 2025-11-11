@@ -1,14 +1,13 @@
 package com.gourav.LedgerLens.Configuration;
 
+import com.gourav.LedgerLens.Security.CustomOAuth2UserService;
+import com.gourav.LedgerLens.Security.OAuthLoginSuccessHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -29,22 +28,27 @@ public class SecurityConfig {
 
     private final LedgerLensUserDetailsService userDetailsService;
     private final JwtAuthenticationFIlter jwtAuthenticationFilter;
+    private final OAuthLoginSuccessHandler successHandler;
+    private final CustomOAuth2UserService oauth2UserService;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     public SecurityConfig(LedgerLensUserDetailsService userDetailsService,
-                    @Lazy JwtAuthenticationFIlter jwtAuthenticationFilter){
+                    @Lazy JwtAuthenticationFIlter jwtAuthenticationFilter,
+                          OAuthLoginSuccessHandler successHandler,
+                          CustomOAuth2UserService oauth2UserService,
+                          BCryptPasswordEncoder passwordEncoder
+                          ){
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.successHandler = successHandler;
+        this.oauth2UserService = oauth2UserService;
+        this.passwordEncoder = passwordEncoder;
                     }
-
-    @Bean
-    public BCryptPasswordEncoder passwordEncoder(){
-        return new BCryptPasswordEncoder(12);
-    }
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
+        authProvider.setPasswordEncoder(passwordEncoder);
         return authProvider;
     }
 
@@ -54,9 +58,17 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
+                    .requestMatchers("/auth/**","/oauth2/**","/public/**").permitAll()
                 .anyRequest().authenticated()
             )
+                .oauth2Login(oauth2 ->
+                        oauth2
+                                .userInfoEndpoint(userInfo ->
+                                        userInfo
+                                                .oidcUserService(oauth2UserService)   // add this line for Google (OIDC)
+                                )
+                                .successHandler(successHandler)
+                )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -74,12 +86,6 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
-    }
-
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
     }
     
 

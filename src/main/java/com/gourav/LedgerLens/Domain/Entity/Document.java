@@ -36,8 +36,6 @@ public class Document {
     @Enumerated(EnumType.STRING)
     private processingStatus status; // PROCESSING, COMPLETED, FAILED, UPLOADED
 
-    private String errorMessage;
-
     @ManyToOne(fetch=FetchType.LAZY)
     @JoinColumn(name="user_id", nullable=false)
     private User user;
@@ -48,9 +46,6 @@ public class Document {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
-
-    @Column(length=500)
-    private String failureReason;
 
     @PrePersist
     protected void onCreate() {
