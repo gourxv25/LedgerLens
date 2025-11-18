@@ -40,6 +40,9 @@ public class Document {
     @JoinColumn(name="user_id", nullable=false)
     private User user;
 
+    @Column(name = "gmail_message_id", unique = true)
+    private String gmailMessageId;
+
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "transaction_id", referencedColumnName = "id") // Creates the FK column
     private Transaction transaction;

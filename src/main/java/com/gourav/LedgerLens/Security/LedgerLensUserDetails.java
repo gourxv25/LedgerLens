@@ -3,6 +3,7 @@ package com.gourav.LedgerLens.Security;
 import java.util.Collection;
 import java.util.Collections;
 
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,6 +12,7 @@ import com.gourav.LedgerLens.Domain.Entity.User;
 
 import lombok.extern.slf4j.Slf4j;
 
+@Getter
 @Slf4j
 public class LedgerLensUserDetails implements UserDetails {
 
@@ -20,10 +22,6 @@ public class LedgerLensUserDetails implements UserDetails {
         this.user = user;
     }
 
-    public User  getUser(){
-        return user;
-    }
-    
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
           try {
@@ -52,5 +50,18 @@ public class LedgerLensUserDetails implements UserDetails {
         }
         return user.getEmail();
     }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() { return true; }
+
 
 }

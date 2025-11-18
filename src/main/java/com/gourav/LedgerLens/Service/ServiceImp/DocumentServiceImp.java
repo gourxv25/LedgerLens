@@ -4,15 +4,16 @@ import com.gourav.LedgerLens.Domain.Entity.Document;
 import com.gourav.LedgerLens.Domain.Entity.Transaction;
 import com.gourav.LedgerLens.Domain.Entity.User;
 import com.gourav.LedgerLens.Domain.Enum.processingStatus;
+import com.gourav.LedgerLens.Repository.UserRepository;
 import com.gourav.LedgerLens.Service.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import com.gourav.LedgerLens.Repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -24,33 +25,42 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentServiceImp implements DocumentService {
 
     private final S3Service s3Service;
+    private final ProcessDocumentService processDocumentService;
     private final DocumentRepository documentRepository;
     private final TextExtractService textExtractService;
     private final GeminiAiService geminiAiService;
     private final TransactionService transactionService;
+    private final UserRepository userRepository;
 
     @Value("${cloudflare.r2.bucket}")
     private String bucketName;
 
     @Override
     @Transactional
-    public Page<Transaction> uploadFile(MultipartFile file, User loggedInUser, Pageable pageable) throws Exception {
+    public void uploadFile(MultipartFile file, User loggedInUser) throws Exception {
 
-        if(file.isEmpty()){
-            throw new IllegalArgumentException("File is cannot be empty.");
+        log.info("Starting file upload for userId={} fileName={}",
+                loggedInUser.getId(), file.getOriginalFilename());
+
+        if (file.isEmpty()) {
+            log.warn("Upload failed: file is empty userId={}", loggedInUser.getId());
+            throw new IllegalArgumentException("File cannot be empty.");
         }
-        // 1. Upload to S3 First
-        String s3Key = s3Service.uploadFile(file);
 
-        // Defensive check to ensure we only store the key, not the full URL
+        // Upload to S3
+        String s3Key = s3Service.uploadFile(file);
+        log.info("File uploaded to S3 bucket={} key={}", bucketName, s3Key);
+
+        // Keep only the key
         if (s3Key.startsWith("http")) {
             s3Key = s3Key.substring(s3Key.lastIndexOf("/") + 1);
         }
 
-        // 2. Create and savve the initial document record
+        // Create document record
         Document document = Document.builder()
                 .s3Key(s3Key)
                 .originalFileName(file.getOriginalFilename())
@@ -58,113 +68,38 @@ public class DocumentServiceImp implements DocumentService {
                 .status(processingStatus.PROCESSING)
                 .build();
 
-        System.out.println(document);
-
         Document savedDocument = documentRepository.save(document);
+        log.info("Document saved with id={} publicId={} status={}",
+                savedDocument.getId(), savedDocument.getPublicId(), savedDocument.getStatus());
 
-        // 3. Trigger the heavy lifting asynchronoulsy
-       return processDocument(savedDocument.getId(), loggedInUser, pageable);
-
-    }
-
-    @Transactional
-    public Page<Transaction> processDocument(UUID documentId, User loggedInUser, Pageable pageable){
-        System.out.println("--> ProcessDocument");
-        Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new EntityNotFoundException("Document not found with ID: " + documentId));
-        System.out.println("Bucket Name: " + bucketName);
-        System.out.println("S3 Key: " + document.getS3Key());
-
-        try{
-            System.out.print("try block of processDocument");
-            System.out.println("Bucket Name: " + bucketName);
-            System.out.println("S3 Key: " + document.getS3Key());
-
-            // Step 1: Extract text
-            String extractedText = textExtractService.extractTextFromS3File(bucketName, document.getS3Key());
-
-            // Step 2: Call AI Service
-            String rawAiResponse = geminiAiService.extractTextToTransaction(extractedText, loggedInUser);
-
-            // Step 3: Robustly clean the JSON response
-            String jsonResponse = extractJsonFromString(rawAiResponse);
-
-            if(jsonResponse == null){
-                throw new Exception("Failed to extract valid JSOn from AI response.");
-            }
-
-            // Step 4: Create the transaction
-//            Transaction transaction = transactionService.createTransactionFromJson(jsonResponse, document.getUser(), document);
-            Page<Transaction> transactions = transactionService.createTransactionServiceFromJsonArray(jsonResponse, document.getUser(), document, pageable);
-            System.out.println("Transactions created successfully: " + transactions.getContent().size());
-
-            // Step 5: If everything succeeds, update status to COMPLETED
-            document.setStatus(processingStatus. COMPLETED);
-            return transactions;
-
-        } catch (Exception e) {
-            document.setStatus(processingStatus.FAILED);
-        }
-        finally {
-            documentRepository.save(document);
-        }
-        return null;
-    }
-
-    private String extractJsonFromString(String text){
-        // This regex finds content between ```json and ``` or just between { and }
-        final Pattern pattern = Pattern.compile("(?s)```json\\s*(.*?)\\s*```|(?s)(\\{.*\\})");
-        Matcher matcher = pattern.matcher(text);
-        if (matcher.find()) {
-            // The first non-null group is out JSON
-            if(matcher.group(1) != null) return matcher.group(1).trim();
-            if(matcher.group(2) != null) return matcher.group(2).trim();
-        }
-        return null;
-    }
-
-
-
-
-    @Override
-    public Transaction test(User loggedInUser) throws IOException {
-        Document document = new Document();
-
-        String s3Key = "b3c948c2-f893-4faa-abfb-e3bb598dd2fc-Invoice001.pdf";
-
-        String extractedText = textExtractService.extractTextFromS3File(bucketName, s3Key);
-
-        String rawAiResponse = geminiAiService.extractTextToTransaction(extractedText, loggedInUser);
-
-        // Step 3: Robustly clean the JSON response
-        String jsonResponse = extractJsonFromString(rawAiResponse);
-        System.out.println(jsonResponse);
-
-        try {
-           return transactionService.createTransactionFromJson(jsonResponse, loggedInUser, document);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // Trigger processing
+        processDocumentService.processDocument(savedDocument.getId(), loggedInUser);
     }
 
     @Override
     public List<Document> getAllDocument() {
-        List<Document> docs =  documentRepository.findAll();
-        return docs;
+        log.info("Fetching all documents");
+        return documentRepository.findAll();
     }
 
     @Override
     public byte[] viewDocument(String publicId) {
+        log.info("View document request. publicId={}", publicId);
+
         Document document = documentRepository.findByPublicId(publicId)
-                .orElseThrow(() -> new EntityNotFoundException("Document not found with public ID: " + publicId));
+                .orElseThrow(() -> {
+                    log.error("Document not found. publicId={}", publicId);
+                    return new EntityNotFoundException("Document not found with public ID: " + publicId);
+                });
 
         try {
+            log.info("Fetching document bytes from S3 for key={}", document.getS3Key());
             return s3Service.viewFile(document.getS3Key());
         } catch (IOException e) {
+            log.error("Error retrieving file from S3. key={} error={}", document.getS3Key(), e.getMessage());
             throw new RuntimeException("Error retrieving file from S3", e);
         }
     }
 
 
 }
-

@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, UUID> {
     Optional<Document> findByPublicId(String publicId);
+
+    boolean existsByGmailMessageId(String messageId);
 }

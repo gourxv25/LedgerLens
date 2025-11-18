@@ -2,7 +2,10 @@ package com.gourav.LedgerLens.Security;
 
 import java.io.IOException;
 
+import com.gourav.LedgerLens.Domain.Entity.User;
+import com.gourav.LedgerLens.Repository.UserRepository;
 import com.gourav.LedgerLens.Service.AuthenticationService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -23,11 +26,14 @@ public class JwtAuthenticationFIlter extends OncePerRequestFilter {
 
     private final AuthenticationService jwtService;
     private final LedgerLensUserDetailsService userDetailsService;
+    private final UserRepository userRepository;
 
     public JwtAuthenticationFIlter(@Lazy AuthenticationService jwtService,
-                                   LedgerLensUserDetailsService userDetailsService) {
+                                   LedgerLensUserDetailsService userDetailsService,
+                                   UserRepository userRepository) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -64,8 +70,12 @@ public class JwtAuthenticationFIlter extends OncePerRequestFilter {
 
             // 4. Authenticate user
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+//                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                String finalUsername = username;
+                User userEntity = userRepository.findByEmail(username)
+                        .orElseThrow(() -> new EntityNotFoundException("user not found with email: " + finalUsername));
 
+                LedgerLensUserDetails userDetails = new LedgerLensUserDetails(userEntity);
                 if (jwtService.validateToken(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(

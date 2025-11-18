@@ -25,5 +25,5 @@ public interface TransactionService {
 
     Page<Transaction> getTransactionByCategory(String category, User loggedInUser, Pageable pageable);
 
-    Page<Transaction> createTransactionServiceFromJsonArray(String jsonResponse, User user, Document document, Pageable pageable);
+    void createTransactionServiceFromJsonArray(String jsonResponse, User user, Document document);
 }

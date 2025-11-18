@@ -37,33 +37,19 @@ public class DocumentController {
     private final DocumentMapper documentMapper;
 
     @PostMapping("/upload")
-    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> uploadDocuments(
+    public ResponseEntity<ApiResponse<?>> uploadDocuments(
             @RequestParam("files") List<MultipartFile> files,
-            @AuthenticationPrincipal(expression = "user") User loggedInUser,
-            @PageableDefault(size = 20, sort = "txnDate") Pageable pageable
+            @AuthenticationPrincipal(expression = "user") User loggedInUser
     ) throws Exception {
-
-        List<Transaction> allTransactions = new ArrayList<>();
-
         for (MultipartFile file : files) {
-            Page<Transaction> transactions = documentService.uploadFile(file, loggedInUser, pageable);
-            allTransactions.addAll(transactions.getContent());
+            documentService.uploadFile(file, loggedInUser);
         }
-
-        Page<TransactionResponseDto> response = new PageImpl<>(allTransactions, pageable, allTransactions.size())
-                .map(transactionMapper::toDto);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Documents uploaded successfully", response));
+                .body(ApiResponse.success("Documents uploaded successfully"));
     }
 
-
-    @GetMapping("/test")
-    public ResponseEntity<TransactionResponseDto> test(@AuthenticationPrincipal(expression = "user") User loggedInUser) throws IOException {
-        Transaction transaction = documentService.test(loggedInUser);
-        return ResponseEntity.ok(transactionMapper.toDto(transaction));
-    }
 
     @GetMapping()
     public ResponseEntity<ApiResponse<List<DocumentResponseDto>>> getAllDocument(){

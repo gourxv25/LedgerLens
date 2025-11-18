@@ -2,6 +2,7 @@ package com.gourav.LedgerLens.Configuration;
 
 import com.gourav.LedgerLens.Security.CustomOAuth2UserService;
 import com.gourav.LedgerLens.Security.OAuthLoginSuccessHandler;
+import jakarta.servlet.http.Cookie;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -58,7 +59,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/auth/**","/oauth2/**","/public/**").permitAll()
+                    .requestMatchers("/auth/**","/oauth2/**","/public/**", "/pubsub/push", "/gmail/**").permitAll()
                 .anyRequest().authenticated()
             )
                 .oauth2Login(oauth2 ->
@@ -69,7 +70,21 @@ public class SecurityConfig {
                                 )
                                 .successHandler(successHandler)
                 )
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .logout(logout -> logout
+                        .logoutUrl("/auth/logout")
+                        .logoutSuccessHandler((request, response, authentication) -> {
+                            Cookie cookie = new Cookie("LL-JWT", null);
+                            cookie.setPath("/");
+                            cookie.setMaxAge(0);
+                            cookie.setHttpOnly(true);
+                            cookie.setSecure(true);
+                            response.addCookie(cookie);
+
+                            response.setStatus(200);
+                            response.getWriter().write("Logout successful");
+                        })
+                )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -79,10 +94,22 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173")); // Adjust as needed
+        configuration.setAllowedOrigins(List.of("http://localhost:5173","https://otilia-undated-joelle.ngrok-free.dev"));
+// Adjust as needed
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "X-Requested-With",
+                "LL-JWT"
+        ));
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of(
+                "Set-Cookie",
+                "LL-JWT"
+        ));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

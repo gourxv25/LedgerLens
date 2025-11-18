@@ -14,8 +14,7 @@ import java.util.List;
 
 public interface DocumentService {
 
-    Page<Transaction> uploadFile(MultipartFile file, User loggedInUser, Pageable pageable) throws Exception;
-    Transaction test(User loggedInUser) throws IOException;
+    void uploadFile(MultipartFile file, User loggedInUser) throws Exception;
 
     List<Document> getAllDocument();
 
