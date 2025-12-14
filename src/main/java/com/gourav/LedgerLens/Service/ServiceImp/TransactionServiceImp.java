@@ -9,17 +9,19 @@ import com.gourav.LedgerLens.Domain.Entity.Transaction;
 import com.gourav.LedgerLens.Domain.Entity.User;
 import com.gourav.LedgerLens.Repository.TransactionRepository;
 import com.gourav.LedgerLens.Service.TransactionService;
+
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -31,193 +33,219 @@ public class TransactionServiceImp implements TransactionService {
 
     @Override
     @Transactional
-    public Transaction createTransactionFromJson(String jsonResponse, User loggedInUser, Document document) throws Exception {
+    public Transaction createTransactionFromJson(
+            String jsonResponse,
+            User loggedInUser,
+            Document document
+    ) throws JsonProcessingException {
 
-        log.info("Creating transaction from JSON for userId={}", loggedInUser.getId());
+        log.info("Creating transaction from JSON userId={}", loggedInUser.getId());
 
-        // Step 1: Convert JSON to DTO
-        CreateTransactionDto createTransactionDto = objectMapper.readValue(jsonResponse, CreateTransactionDto.class);
-        log.debug("Parsed DTO from JSON: {}", createTransactionDto);
+        CreateTransactionDto dto =
+                objectMapper.readValue(jsonResponse, CreateTransactionDto.class);
 
-        // Step 2: Validate
-        validateTransactionDto(createTransactionDto);
-
-        try {
-            // Step 3: Build Transaction entity
-            Transaction transaction = Transaction.builder()
-                    .Client(createTransactionDto.getClient())
-                    .txnDate(createTransactionDto.getTxnDate())
-                    .amountBeforeTax(createTransactionDto.getAmountBeforeTax())
-                    .amountAfterTax(createTransactionDto.getAmountAfterTax())
-                    .currency(createTransactionDto.getCurrency())
-                    .category(createTransactionDto.getCategory())
-                    .transactionType(createTransactionDto.getTransactionType())
-                    .user(loggedInUser)
-                    .document(document)
-                    .paymentMethod(createTransactionDto.getPaymentMethod())
-                    .invoiceNumber(createTransactionDto.getInvoiceNumber())
-                    .documentPublicId(document != null ? document.getPublicId() : null)
-                    .build();
-
-            log.info("Saving transaction for userId={} invoice={}", loggedInUser.getId(), createTransactionDto.getInvoiceNumber());
-
-            Transaction saved = transactionRepository.save(transaction);
-
-            log.info("Transaction created successfully. publicId={}", saved.getPublicId());
-            return saved;
-
-        } catch (RuntimeException e) {
-            log.error("Error creating transaction from JSON: {}", e.getMessage(), e);
-            throw new Exception("Error creating transaction from JSON", e);
-        }
-    }
-
-    @Override
-    public Transaction createTransaction(CreateTransactionDto createTransactionDto, User loggedInUser) {
-
-        log.info("Creating manual transaction for userId={}", loggedInUser.getId());
-
-        validateTransactionDto(createTransactionDto);
+        validateTransactionDto(dto);
 
         Transaction transaction = Transaction.builder()
-                .Client(createTransactionDto.getClient())
-                .txnDate(createTransactionDto.getTxnDate())
-                .amountBeforeTax(createTransactionDto.getAmountBeforeTax())
-                .amountAfterTax(createTransactionDto.getAmountAfterTax())
-                .currency(createTransactionDto.getCurrency())
-                .category(createTransactionDto.getCategory())
-                .transactionType(createTransactionDto.getTransactionType())
+                .Client(dto.getClient())
+                .txnDate(dto.getTxnDate())
+                .amountBeforeTax(dto.getAmountBeforeTax())
+                .amountAfterTax(dto.getAmountAfterTax())
+                .currency(dto.getCurrency())
+                .category(dto.getCategory())
+                .transactionType(dto.getTransactionType())
+                .paymentMethod(dto.getPaymentMethod())
+                .invoiceNumber(dto.getInvoiceNumber())
                 .user(loggedInUser)
-                .paymentMethod(createTransactionDto.getPaymentMethod())
-                .invoiceNumber(createTransactionDto.getInvoiceNumber())
-                .notes(createTransactionDto.getNotes())
+                .document(document)
+                .documentPublicId(document != null ? document.getPublicId() : null)
                 .build();
 
         Transaction saved = transactionRepository.save(transaction);
 
-        log.info("Manual transaction created successfully. publicId={}", saved.getPublicId());
-
+        log.info("Transaction created successfully publicId={}", saved.getPublicId());
         return saved;
     }
 
     @Override
-    public Page<Transaction> getAllTransactionsForUser(User loggedInUser, Pageable pageable) {
-        log.info("Fetching all transactions for userId={}", loggedInUser.getId());
-        return transactionRepository.findByUser(loggedInUser, pageable);
+    public Transaction createTransaction(CreateTransactionDto dto, User loggedInUser) {
+
+        log.info("Creating manual transaction userId={}", loggedInUser.getId());
+
+        validateTransactionDto(dto);
+
+        Transaction transaction = Transaction.builder()
+                .Client(dto.getClient())
+                .txnDate(dto.getTxnDate())
+                .amountBeforeTax(dto.getAmountBeforeTax())
+                .amountAfterTax(dto.getAmountAfterTax())
+                .currency(dto.getCurrency())
+                .category(dto.getCategory())
+                .transactionType(dto.getTransactionType())
+                .paymentMethod(dto.getPaymentMethod())
+                .invoiceNumber(dto.getInvoiceNumber())
+                .notes(dto.getNotes())
+                .user(loggedInUser)
+                .build();
+
+        Transaction saved = transactionRepository.save(transaction);
+
+        log.info("Manual transaction created publicId={}", saved.getPublicId());
+        return saved;
     }
 
     @Override
-    public Transaction updateTransaction(String publicId, CreateTransactionDto createTransactionDto, User loggedInUser) {
-
-        log.info("Updating transaction publicId={} userId={}", publicId, loggedInUser.getId());
-
-        try {
-            Transaction existingTransaction = transactionRepository.findByPublicIdAndUser(publicId, loggedInUser)
-                    .orElseThrow(() -> {
-                        log.error("Transaction not found for update. publicId={}", publicId);
-                        return new EntityNotFoundException("Transaction not found with id: " + publicId);
-                    });
-
-            // Update non-null fields
-            if (createTransactionDto.getClient() != null) existingTransaction.setClient(createTransactionDto.getClient());
-            if (createTransactionDto.getTxnDate() != null) existingTransaction.setTxnDate(createTransactionDto.getTxnDate());
-            if (createTransactionDto.getAmountBeforeTax() != null) existingTransaction.setAmountBeforeTax(createTransactionDto.getAmountBeforeTax());
-            if (createTransactionDto.getAmountAfterTax() != null) existingTransaction.setAmountAfterTax(createTransactionDto.getAmountAfterTax());
-            if (createTransactionDto.getCurrency() != null) existingTransaction.setCurrency(createTransactionDto.getCurrency());
-            if (createTransactionDto.getCategory() != null) existingTransaction.setCategory(createTransactionDto.getCategory());
-            if (createTransactionDto.getTransactionType() != null) existingTransaction.setTransactionType(createTransactionDto.getTransactionType());
-            if (createTransactionDto.getNotes() != null) existingTransaction.setNotes(createTransactionDto.getNotes());
-            if (createTransactionDto.getPaymentMethod() != null) existingTransaction.setPaymentMethod(createTransactionDto.getPaymentMethod());
-            if (createTransactionDto.getInvoiceNumber() != null) existingTransaction.setInvoiceNumber(createTransactionDto.getInvoiceNumber());
-
-            Transaction saved = transactionRepository.save(existingTransaction);
-
-            log.info("Transaction updated successfully publicId={}", publicId);
-            return saved;
-
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid publicId={} error={}", publicId, e.getMessage());
-            throw new IllegalArgumentException("Invalid UUID string: " + publicId, e);
-        } catch (SecurityException e) {
-            log.error("Unauthorized transaction update attempt publicId={} userId={}", publicId, loggedInUser.getId());
-            throw new SecurityException("Access denied. Transaction does not belong to the logged-in user.", e);
-        }
+    public Page<Transaction> getAllTransactionsForUser(User user, Pageable pageable) {
+        log.info("Fetching all transactions userId={}", user.getId());
+        return transactionRepository.findByUser(user, pageable);
     }
 
     @Override
-    public Transaction getTransactionById(String publicId, User loggedInUser) {
+    public Page<Transaction> getAllExpenseTransactionsForUser(
+            User user,
+            Pageable pageable
+    ) {
 
-        log.info("Fetching transaction by id={} for userId={}", publicId, loggedInUser.getId());
-
-        return transactionRepository.findByPublicIdAndUser(publicId, loggedInUser)
-                .orElseThrow(() -> {
-                    log.error("Transaction not found. publicId={} userId={}", publicId, loggedInUser.getId());
-                    return new EntityNotFoundException("Transaction not found with id: " + publicId);
-                });
+        log.info("Fetching EXPENSE transactions userId={}", user.getId());
+        return transactionRepository
+                .findByUserAndTransactionType(user, "EXPENSE", pageable);
     }
 
     @Override
-    public void deleteTransaction(String publicId, User loggedInUser) {
+    public Page<Transaction> getAllIncomeTransactionsForUser(
+            User user,
+            Pageable pageable
+    ) {
 
-        log.info("Deleting transaction publicId={} userId={}", publicId, loggedInUser.getId());
+        log.info("Fetching INCOME transactions userId={}", user.getId());
+        return transactionRepository
+                .findByUserAndTransactionType(user, "INCOME", pageable);
+    }
 
-        Transaction transaction = transactionRepository.findByPublicIdAndUser(publicId, loggedInUser)
-                .orElseThrow(() -> {
-                    log.error("Transaction not found for deletion. publicId={} userId={}", publicId, loggedInUser.getId());
-                    return new EntityNotFoundException("Transaction not found with id: " + publicId);
-                });
+    @Override
+    public Transaction updateTransaction(
+            String publicId,
+            CreateTransactionDto dto,
+            User user
+    ) {
 
+        log.info("Updating transaction publicId={} userId={}", publicId, user.getId());
+
+        Transaction transaction = transactionRepository
+                .findByPublicIdAndUser(publicId, user)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "Transaction not found with id: " + publicId
+                        )
+                );
+
+        if (dto.getClient() != null) transaction.setClient(dto.getClient());
+        if (dto.getTxnDate() != null) transaction.setTxnDate(dto.getTxnDate());
+        if (dto.getAmountBeforeTax() != null)
+            transaction.setAmountBeforeTax(dto.getAmountBeforeTax());
+        if (dto.getAmountAfterTax() != null)
+            transaction.setAmountAfterTax(dto.getAmountAfterTax());
+        if (dto.getCurrency() != null) transaction.setCurrency(dto.getCurrency());
+        if (dto.getCategory() != null) transaction.setCategory(dto.getCategory());
+        if (dto.getTransactionType() != null)
+            transaction.setTransactionType(dto.getTransactionType());
+        if (dto.getNotes() != null) transaction.setNotes(dto.getNotes());
+        if (dto.getPaymentMethod() != null)
+            transaction.setPaymentMethod(dto.getPaymentMethod());
+        if (dto.getInvoiceNumber() != null)
+            transaction.setInvoiceNumber(dto.getInvoiceNumber());
+
+        Transaction saved = transactionRepository.save(transaction);
+
+        log.info("Transaction updated successfully publicId={}", publicId);
+        return saved;
+    }
+
+    @Override
+    public Transaction getTransactionById(String publicId, User user) {
+
+        log.info("Fetching transaction publicId={} userId={}", publicId, user.getId());
+
+        return transactionRepository
+                .findByPublicIdAndUser(publicId, user)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "Transaction not found with id: " + publicId
+                        )
+                );
+    }
+
+    @Override
+    public void deleteTransaction(String publicId, User user) {
+
+        log.info("Deleting transaction publicId={} userId={}", publicId, user.getId());
+
+        Transaction transaction = getTransactionById(publicId, user);
         transactionRepository.delete(transaction);
 
         log.info("Transaction deleted successfully publicId={}", publicId);
     }
 
     @Override
-    public Page<Transaction> getTransactionByCategory(String categoryKeyword, User loggedInUser, Pageable pageable) {
-        log.info("Fetching transactions by category={} for userId={}", categoryKeyword, loggedInUser.getId());
-        return transactionRepository.findByCategoryKeywordAndUser(categoryKeyword, loggedInUser, pageable);
+    public Page<Transaction> getTransactionByCategory(
+            String category,
+            User user,
+            Pageable pageable
+    ) {
+
+        log.info("Fetching transactions by category={} userId={}", category, user.getId());
+        return transactionRepository
+                .findByCategoryKeywordAndUser(category, user, pageable);
     }
 
     @Override
-    public void createTransactionServiceFromJsonArray(String jsonArrayStr, User loggedInUser, Document document) {
+    public void createTransactionServiceFromJsonArray(
+            String jsonArrayStr,
+            User user,
+            Document document
+    ) throws JsonProcessingException {
 
-        log.info("Processing JSON array for transaction creation. userId={} docPublicId={}",
-                loggedInUser.getId(), document != null ? document.getPublicId() : null);
+        log.info("Processing JSON array userId={}", user.getId());
 
         List<Transaction> transactions = new ArrayList<>();
+        JsonNode root = objectMapper.readTree(jsonArrayStr);
 
-        try {
-            JsonNode root = objectMapper.readTree(jsonArrayStr);
-
-            if (root.isArray()) {
-                log.info("JSON contains array. Count={}", root.size());
-                for (JsonNode node : root) {
-                    Transaction transaction = createTransactionFromJson(node.toString(), loggedInUser, document);
-                    transactions.add(transaction);
-                }
-            } else {
-                log.info("JSON contains single object.");
-                Transaction transaction = createTransactionFromJson(jsonArrayStr, loggedInUser, document);
-                transactions.add(transaction);
+        if (root.isArray()) {
+            for (JsonNode node : root) {
+                transactions.add(
+                        createTransactionFromJson(node.toString(), user, document)
+                );
             }
-
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse JSON array: {}", e.getMessage(), e);
-            throw new RuntimeException("Error parsing JSON array", e);
-        } catch (Exception e) {
-            log.error("Unexpected error creating transactions: {}", e.getMessage(), e);
-            throw new RuntimeException(e);
+        } else {
+            transactions.add(
+                    createTransactionFromJson(jsonArrayStr, user, document)
+            );
         }
 
-        log.info("Saving {} extracted transactions", transactions.size());
         transactionRepository.saveAll(transactions);
+        log.info("Saved {} transactions", transactions.size());
     }
 
     private void validateTransactionDto(CreateTransactionDto dto) {
-        log.debug("Validating Transaction DTO");
-        Objects.requireNonNull(dto.getClient(), "Client name cannot be null.");
-        Objects.requireNonNull(dto.getTxnDate(), "Transaction date cannot be null.");
-        Objects.requireNonNull(dto.getAmountAfterTax(), "Total amount cannot be null.");
-        Objects.requireNonNull(dto.getCategory(), "Category cannot be null.");
+
+        log.debug("Validating Transaction DTO: {}", dto);
+
+        if (dto == null) {
+            throw new IllegalArgumentException("Transaction DTO cannot be null");
+        }
+        if (dto.getClient() == null || dto.getClient().isBlank()) {
+            throw new IllegalArgumentException("Client name cannot be null or empty. Received: " + dto);
+        }
+        if (dto.getTxnDate() == null) {
+            throw new IllegalArgumentException("Transaction date cannot be null. Received: " + dto);
+        }
+        if (dto.getAmountAfterTax() == null) {
+            throw new IllegalArgumentException("Amount after tax cannot be null. Received: " + dto);
+        }
+        if (dto.getCategory() == null || dto.getCategory().isBlank()) {
+            throw new IllegalArgumentException("Category cannot be null or empty. Received: " + dto);
+        }
+
+        log.debug("Transaction DTO validation passed");
     }
 }

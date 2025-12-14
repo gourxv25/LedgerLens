@@ -47,7 +47,7 @@ public class GmailSetUpServiceImp implements GmailSetUpService {
 
         }catch(IOException e){
             log.error("Failed to start watch for user {}: {}", user.getEmail(), e.getMessage());
-            throw new IOException("Failed to start watch", e);
+            throw e;
         }
     }
 }

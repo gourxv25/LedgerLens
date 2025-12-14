@@ -22,4 +22,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     // This is CORRECT. It directly checks the 'category' string field on the Transaction entity 't'.
     @Query("SELECT t FROM Transaction t WHERE t.category LIKE CONCAT('%', :keyword, '%') AND t.user = :user")
     Page<Transaction> findByCategoryKeywordAndUser(@Param("keyword") String keyword, @Param("user") User user, Pageable pageable);
+
+    Page<Transaction> findByUserAndTransactionType(User loggedInUser, String expense, Pageable pageable);
 }

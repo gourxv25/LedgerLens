@@ -7,5 +7,5 @@ import java.util.UUID;
 
 public interface ProcessDocumentService {
     void processDocument(UUID id, User loggedInUser);
-    void processAttachment(byte[] filesBytes, String userEmail, String attachName, String contentType, String messageId) throws IOException;
+    void processAttachment(byte[] filesBytes, String userEmail, String attachName, String contentType, String messageId) throws Exception;
 }

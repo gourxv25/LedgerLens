@@ -1,95 +1,80 @@
 package com.gourav.LedgerLens.Service.ServiceImp;
 
 import com.google.genai.Client;
-import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentResponse;
 import com.gourav.LedgerLens.Domain.Entity.User;
 import com.gourav.LedgerLens.Service.GeminiAiService;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GeminiAiServiceImp implements GeminiAiService {
 
     private final Client geminiClient;
 
     @Override
-    public String extractTextToTransaction(String extractedText, User loggedInUser) {
-        String systemInstruction = """
-                You are an intelligent data transformation system that converts unstructured invoice text into a structured `TransactionDto` JSON object.
+    public String extractTextToTransaction(
+            String extractedText,
+            User loggedInUser
+    ) throws IOException {
 
-                **Business Logic:**
+        log.info("Calling Gemini AI for transaction extraction user={}",
+                loggedInUser.getEmail());
+
+        String systemInstruction = """
+                You are an intelligent data extraction system that converts unstructured
+                invoice/receipt text into a structured JSON object.
                 
-                1. The **"user"** represents the currently logged-in person in the system.
-                
-                2. The **"client"** is always the other party mentioned in the invoice.
-                
-                3. If the user is paying the client, classify the transaction as `EXPENSE`.
-                
-                4. If the user is receiving payment from the client, classify the transaction as `INCOME`.
-                
-                5. **Category Determination:** Intelligently determine the transaction `category`. To do this:
-                
-                    * Analyze the client's name and the services or products described in the invoice.
-                    * If necessary, perform a web search on the client to understand their industry or business type.
-                    * Assign a logical and concise category based on this analysis (e.g., "Cloud Hosting," "Software Subscription," "Marketing Services," "Office Supplies").
-                
-                **Output Rules:**
-                
-                * Produce a single, valid JSON object matching this exact structure.
-                
-                * Use `camelCase` for all field names.
-                
-                ```json
+                You MUST return ONLY a valid JSON object with EXACTLY these fields:
                 {
-                  "client": "string",
-                  "txnDate": "YYYY-MM-DD",
-                  "amountBeforeTax": "decimal",
-                  "amountAfterTax": "decimal",
-                  "currency": "string",
-                  "category": "string (inferred from client/invoice details)",
-                  "transactionType": "INCOME or EXPENSE",
-                  "invoiceNumber": "string (optional)",
-                  "paymentMethod": "string (optional)"
+                  "client": "string - the seller/vendor/company name from the invoice",
+                  "txnDate": "string - date in format YYYY-MM-DD (e.g., 2025-09-15)",
+                  "amountBeforeTax": number or null - subtotal before tax,
+                  "amountAfterTax": number - total amount paid (REQUIRED),
+                  "currency": "string - 3-letter currency code like USD, EUR, INR",
+                  "category": "string - one of: SUBSCRIPTION, SOFTWARE, UTILITIES, OFFICE_SUPPLIES, TRAVEL, FOOD, ENTERTAINMENT, OTHER",
+                  "transactionType": "string - either EXPENSE or INCOME",
+                  "paymentMethod": "string - one of: CREDIT_CARD, DEBIT_CARD, BANK_TRANSFER, CASH, UPI, OTHER",
+                  "invoiceNumber": "string or null - invoice/receipt number",
+                  "notes": "string or null - any additional relevant notes"
                 }
-                ```
                 
-                **Validation & Data Handling Rules:**
-                
-                * `txnDate` must be in ISO format (YYYY-MM-DD).
-                * `amountBeforeTax` and `amountAfterTax` must be numeric. If only one amount is present, use it for both fields.
-                * `transactionType` must be either `INCOME` or `EXPENSE`.
-                * The `category` should be a concise, descriptive string.
-                * Ignore unrelated text like disclaimers, signatures, and generic greetings.
-                * Your final output must be **only the raw JSON object**, with no explanations, comments, or markdown formatting.
+                IMPORTANT RULES:
+                1. Return ONLY the JSON object, no markdown, no explanation, no ```json``` tags.
+                2. All field names must be exactly as shown above (camelCase).
+                3. The "client" field should contain the seller/vendor name (who issued the invoice).
+                4. The "txnDate" MUST be in YYYY-MM-DD format.
+                5. If a field cannot be determined, use null (except for required fields: client, txnDate, amountAfterTax, category, transactionType).
+                6. For most invoices/receipts, transactionType should be "EXPENSE".
                 """;
 
-        String userPrompt = "User: " + loggedInUser.getFullname() + "\n\nExtracted Invoice Text:\n" + extractedText;
+        String userPrompt =
+                "User: " + loggedInUser.getFullname() +
+                        "\n\nExtracted Invoice Text:\n" + extractedText;
 
         String fullPrompt = systemInstruction + "\n\n" + userPrompt;
 
-        /*
-        GenerateContentResponse response = geminiClient.models.generateContent(
-                "gemini-2.5-flash",
-                userPrompt,
-                null
-        );
+        try {
+            GenerateContentResponse response =
+                    geminiClient.models.generateContent(
+                            "gemini-2.5-flash",
+                            fullPrompt,
+                            null
+                    );
 
-         */
-        try{
-
-            GenerateContentResponse response = geminiClient.models.generateContent(
-                    "gemini-2.5-flash",
-                    fullPrompt,
-                    null
-            );
+            log.info("Gemini AI response generated successfully");
             return response.text();
-        }catch (Exception e) {
-            throw new RuntimeException("Failed to extract transaction from invoice.", e);
-        }
 
+        } catch (Exception e) {
+            log.error("Unexpected Gemini AI failure", e);
+            throw new IOException("Failed to extract transaction using Gemini AI", e);
+        }
     }
 }

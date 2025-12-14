@@ -10,17 +10,19 @@ import com.gourav.LedgerLens.Security.LedgerLensUserDetails;
 import com.gourav.LedgerLens.Service.AuthenticationService;
 import com.gourav.LedgerLens.Service.EmailService;
 import com.gourav.LedgerLens.Service.UserService;
+
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -36,7 +38,11 @@ public class UserServiceImp implements UserService {
 
     @Override
     public void register(RegisterRequest request) throws MessagingException {
+
+        log.info("Registering user with email: {}", request.getEmail());
+
         if (userRepository.existsByEmail(request.getEmail())) {
+            log.warn("Registration failed. Email already in use: {}", request.getEmail());
             throw new IllegalArgumentException("Email is already in use.");
         }
 
@@ -45,7 +51,9 @@ public class UserServiceImp implements UserService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .verificationCode(generateVerificationCode())
-                .verificationCodeExpiresAt(LocalDateTime.now().plusMinutes(VERIFICATION_CODE_EXPIRY_MINUTES))
+                .verificationCodeExpiresAt(
+                        LocalDateTime.now().plusMinutes(VERIFICATION_CODE_EXPIRY_MINUTES)
+                )
                 .enabled(false)
                 .build();
 
@@ -57,14 +65,32 @@ public class UserServiceImp implements UserService {
 
     @Override
     public AuthResponse authenticate(LoginRequest request) {
-        UserDetails userDetails = authenticationService.authenticate(request.getEmail(), request.getPassword());
-        LedgerLensUserDetails ledgerUser = (LedgerLensUserDetails) userDetails;
+
+        log.info("Authenticating user: {}", request.getEmail());
+
+        UserDetails userDetails =
+                authenticationService.authenticate(
+                        request.getEmail(),
+                        request.getPassword()
+                );
+
+        LedgerLensUserDetails ledgerUser =
+                (LedgerLensUserDetails) userDetails;
 
         if (!ledgerUser.getUser().isEnabled()) {
-            throw new IllegalArgumentException("Account not verified. Please verify your email first.");
+            log.warn("Authentication failed. Account not verified: {}", request.getEmail());
+            throw new IllegalArgumentException(
+                    "Account not verified. Please verify your email first."
+            );
         }
 
-        String token = authenticationService.generateToken(ledgerUser.getUser().getEmail());
+        String token =
+                authenticationService.generateToken(
+                        ledgerUser.getUser().getEmail()
+                );
+
+        log.info("Authentication successful for user: {}", request.getEmail());
+
         return AuthResponse.builder()
                 .token(token)
                 .name(ledgerUser.getUser().getFullname())
@@ -73,20 +99,26 @@ public class UserServiceImp implements UserService {
 
     @Override
     public void verifyUser(VerifyUserDto input) {
+
+        log.info("Verifying user with email: {}", input.getEmail());
+
         User user = userRepository.findByEmail(input.getEmail())
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         if (user.getVerificationCodeExpiresAt().isBefore(LocalDateTime.now())) {
+            log.warn("Verification code expired for email: {}", input.getEmail());
             throw new IllegalArgumentException("Verification code has expired.");
         }
 
         if (!user.getVerificationCode().equals(input.getVerificationCode())) {
+            log.warn("Invalid verification code for email: {}", input.getEmail());
             throw new IllegalArgumentException("Invalid verification code.");
         }
 
         user.setEnabled(true);
         user.setVerificationCode(null);
         user.setVerificationCodeExpiresAt(null);
+
         userRepository.save(user);
 
         log.info("User verified successfully: {}", input.getEmail());
@@ -94,79 +126,76 @@ public class UserServiceImp implements UserService {
 
     @Override
     public void resendVerificationCode(String email) throws MessagingException {
+
+        log.info("Resending verification code to email: {}", email);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         if (user.isEnabled()) {
+            log.warn("Resend failed. Account already verified: {}", email);
             throw new IllegalArgumentException("Account already verified. Please log in.");
         }
 
         user.setVerificationCode(generateVerificationCode());
-        user.setVerificationCodeExpiresAt(LocalDateTime.now().plusMinutes(VERIFICATION_CODE_EXPIRY_MINUTES));
-        userRepository.save(user);
+        user.setVerificationCodeExpiresAt(
+                LocalDateTime.now().plusMinutes(VERIFICATION_CODE_EXPIRY_MINUTES)
+        );
 
+        userRepository.save(user);
         sendVerificationEmail(user);
 
-        log.info("Verification code resent to {}", email);
+        log.info("Verification code resent successfully to {}", email);
     }
 
     @Override
     public void deleteUser(User currentUser) {
+
+        log.info("Deleting user account: {}", currentUser.getEmail());
+
         User user = userRepository.findByEmail(currentUser.getEmail())
-                .orElseThrow(() -> new EntityNotFoundException("User not found with email: " + currentUser.getEmail()));
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "User not found with email: " + currentUser.getEmail()
+                        )
+                );
 
         userRepository.delete(user);
+
         log.info("User account deleted successfully: {}", currentUser.getEmail());
     }
 
     private void sendVerificationEmail(User user) throws MessagingException {
+
         String subject = "LedgerLens - Email Verification Code";
 
         String htmlMessage = """
         <html>
-            <body style="font-family: Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0;">
-                <table align="center" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); margin-top: 40px;">
-                    <tr>
-                        <td style="background-color: #007bff; color: white; padding: 20px; text-align: center; border-top-left-radius: 8px; border-top-right-radius: 8px;">
-                            <h2 style="margin: 0;">Welcome to LedgerLens!</h2>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 30px;">
-                            <p style="font-size: 16px; color: #333;">Hi <strong>%s</strong>,</p>
-                            <p style="font-size: 15px; color: #555;">
-                                Thank you for signing up with LedgerLens. Please use the verification code below to activate your account.
-                            </p>
-                            <div style="margin: 25px 0; text-align: center;">
-                                <div style="display: inline-block; background-color: #007bff; color: #ffffff; padding: 15px 25px; border-radius: 6px; font-size: 22px; font-weight: bold; letter-spacing: 3px;">
-                                    %s
-                                </div>
-                            </div>
-                            <p style="font-size: 14px; color: #666;">
-                                This code will expire in <strong>%d minutes</strong>. If you did not request this, please ignore this email.
-                            </p>
-                            <p style="font-size: 14px; color: #666; margin-top: 20px;">
-                                Best regards,<br>
-                                <strong>LedgerLens Team</strong>
-                            </p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="background-color: #f1f1f1; text-align: center; padding: 15px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; color: #888; font-size: 12px;">
-                            © %d LedgerLens. All rights reserved.
-                        </td>
-                    </tr>
-                </table>
+            <body>
+                <p>Hello %s,</p>
+                <p>Your verification code is <strong>%s</strong>.</p>
+                <p>This code will expire in %d minutes.</p>
             </body>
         </html>
-        """.formatted(user.getFullname(), user.getVerificationCode(), VERIFICATION_CODE_EXPIRY_MINUTES, LocalDateTime.now().getYear());
+        """.formatted(
+                user.getFullname(),
+                user.getVerificationCode(),
+                VERIFICATION_CODE_EXPIRY_MINUTES
+        );
+
+        log.info("Sending verification email to {}", user.getEmail());
 
         try {
             emailService.sendEmail(user.getEmail(), subject, htmlMessage);
-            log.info("Verification email sent to {}", user.getEmail());
+            log.info("Verification email sent successfully to {}", user.getEmail());
+
         } catch (MessagingException e) {
-            log.error("Failed to send verification email to {}: {}", user.getEmail(), e.getMessage());
-            throw new MessagingException("Failed to send verification email. Please try again later.");
+            log.error(
+                    "Failed to send verification email to {}",
+                    user.getEmail(),
+                    e
+            );
+            throw e; // ✅ rethrow same specific exception
         }
     }
 

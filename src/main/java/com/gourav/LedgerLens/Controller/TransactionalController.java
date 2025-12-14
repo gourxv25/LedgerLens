@@ -80,6 +80,37 @@ public class TransactionalController {
         return ResponseEntity.ok(ApiResponse.success("Transaction feched successfully", response));
     }
 
+
+        @GetMapping("/getAllExpenseTransactions")
+        public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> getAllExpenseTransaction(
+                @AuthenticationPrincipal(expression = "user") User loggedInUser,
+                @RequestParam(defaultValue = "0") int page,
+                @RequestParam(defaultValue = "20") int size,
+                @RequestParam(defaultValue = "txnDate,desc") String[] sort){
+            log.info("Fetching all expense transactions for userId={} page={} size={}",
+                    loggedInUser.getId(), page, size);
+            Pageable pageable = PageRequest.of(page, size, Sort.by("txnDate").descending());
+            Page<Transaction> transactions = transactionService.getAllExpenseTransactionsForUser(loggedInUser, pageable);
+            Page<TransactionResponseDto> response = transactions.map(transactionMapper::toDto);
+            log.info("Fetched {} expense transactions for userId={}", response.getTotalElements(), loggedInUser.getId());
+            return ResponseEntity.ok(ApiResponse.success("Expense Transactions fetched successfully", response));
+        }
+
+    @GetMapping("/getAllIncomeTransactions")
+    public ResponseEntity<ApiResponse<Page<TransactionResponseDto>>> getAllIncomeTransaction(
+            @AuthenticationPrincipal(expression = "user") User loggedInUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "txnDate,desc") String[] sort){
+        log.info("Fetching all expense transactions for userId={} page={} size={}",
+                loggedInUser.getId(), page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("txnDate").descending());
+        Page<Transaction> transactions = transactionService.getAllIncomeTransactionsForUser(loggedInUser, pageable);
+        Page<TransactionResponseDto> response = transactions.map(transactionMapper::toDto);
+        log.info("Fetched {} expense transactions for userId={}", response.getTotalElements(), loggedInUser.getId());
+        return ResponseEntity.ok(ApiResponse.success("Expense Transactions fetched successfully", response));
+    }
+
     @PutMapping("/updateTransaction/{publicId}")
     public ResponseEntity<ApiResponse<TransactionResponseDto>> updateTransaction(
             @PathVariable String publicId,

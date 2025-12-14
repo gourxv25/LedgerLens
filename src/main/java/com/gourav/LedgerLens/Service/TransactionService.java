@@ -1,5 +1,6 @@
 package com.gourav.LedgerLens.Service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.gourav.LedgerLens.Domain.Dtos.CreateTransactionDto;
 import com.gourav.LedgerLens.Domain.Entity.Document;
 import com.gourav.LedgerLens.Domain.Entity.Transaction;
@@ -25,5 +26,9 @@ public interface TransactionService {
 
     Page<Transaction> getTransactionByCategory(String category, User loggedInUser, Pageable pageable);
 
-    void createTransactionServiceFromJsonArray(String jsonResponse, User user, Document document);
+    void createTransactionServiceFromJsonArray(String jsonResponse, User user, Document document) throws JsonProcessingException;
+
+    Page<Transaction> getAllExpenseTransactionsForUser(User loggedInUser, Pageable pageable);
+
+    Page<Transaction> getAllIncomeTransactionsForUser(User loggedInUser, Pageable pageable);
 }

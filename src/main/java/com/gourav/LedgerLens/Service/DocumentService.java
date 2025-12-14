@@ -18,5 +18,5 @@ public interface DocumentService {
 
     List<Document> getAllDocument();
 
-    byte[] viewDocument(String publicId);
+    byte[] viewDocument(String publicId) throws IOException;
 }

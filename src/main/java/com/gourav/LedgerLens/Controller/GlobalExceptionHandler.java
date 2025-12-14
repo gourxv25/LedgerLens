@@ -1,6 +1,7 @@
 package com.gourav.LedgerLens.Controller;
 
 import io.jsonwebtoken.JwtException;
+import jakarta.mail.MessagingException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -21,6 +22,14 @@ public class GlobalExceptionHandler {
         log.warn("Validation error: {}", ex.getMessage());
         return ResponseEntity.badRequest().body(ApiResponse.failure(ex.getMessage()));
     }
+
+    @ExceptionHandler(MessagingException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessagingException(MessagingException ex){
+        log.error("Email sending error: ", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.failure("Failed to send email: " + ex.getMessage()));
+    }
+
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {

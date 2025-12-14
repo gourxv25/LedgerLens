@@ -1,38 +1,23 @@
 package com.gourav.LedgerLens.Configuration;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.beans.factory.annotation.Value;
 
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.core.exception.SdkClientException;
+
 import java.net.URI;
+import java.net.URISyntaxException;
 
 @Configuration
+@Slf4j
 public class S3Config {
-/*
-    @Value("${cloud.aws.credentials.access-key}")
-    private String accessKey;
 
-    @Value("${cloud.aws.credentials.secret-key}")
-    private String secretKey;
-
-    @Value("${cloud.aws.region.static}")
-    private String region;
-
-    @Bean
-    public S3Client s3Client(){
-
-            AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey, secretKey);
-            return S3Client.builder()
-                .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-                .build();
-    }
-
-     */
     @Value("${cloudflare.r2.endpoint}")
     private String endpoint;
 
@@ -42,17 +27,37 @@ public class S3Config {
     @Value("${cloudflare.r2.secret-key}")
     private String secretKey;
 
-    private String region = "auto";
+    private final String region = "auto";
 
     @Bean
-    public S3Client s3Client() {
-        AwsBasicCredentials credentials = AwsBasicCredentials.create(accessKey, secretKey);
+    public S3Client s3Client() throws URISyntaxException, SdkClientException {
 
-        return S3Client.builder()
-                .region(Region.of(region)) // R2's "auto" region
-                .endpointOverride(URI.create(endpoint))
-                .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                .build();
+        log.info("Initializing S3 (Cloudflare R2) client configuration");
+
+        try {
+            AwsBasicCredentials credentials =
+                    AwsBasicCredentials.create(accessKey, secretKey);
+
+            S3Client s3Client = S3Client.builder()
+                    .region(Region.of(region))
+                    .endpointOverride(new URI(endpoint))
+                    .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                    .build();
+
+            log.info("S3 client configured successfully");
+            return s3Client;
+
+        } catch (URISyntaxException e) {
+            log.error("Invalid R2 endpoint URI: {}", endpoint, e);
+            throw e;
+
+        } catch (SdkClientException e) {
+            log.error("AWS SDK error while creating S3 client", e);
+            throw e;
+
+        } catch (Exception e) {
+            log.error("Unexpected error during S3 client configuration", e);
+            throw e;
+        }
     }
-
 }

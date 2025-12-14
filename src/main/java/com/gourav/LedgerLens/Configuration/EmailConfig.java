@@ -1,14 +1,16 @@
 package com.gourav.LedgerLens.Configuration;
 
+import jakarta.mail.MessagingException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
-
 import java.util.Properties;
 
 @Configuration
+@Slf4j
 public class EmailConfig {
 
     @Value("${spring.mail.username}")
@@ -18,19 +20,30 @@ public class EmailConfig {
     private String emailPassword;
 
     @Bean
-    public JavaMailSender javaMailSender(){
-        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-        mailSender.setHost("smtp.gmail.com");
-        mailSender.setPort(587);
-        mailSender.setUsername(emailUsername);
-        mailSender.setPassword(emailPassword);
+    public JavaMailSender javaMailSender() throws MessagingException {
 
-        Properties props = mailSender.getJavaMailProperties();
-        props.put("mail.transport.protocol", "smtp");
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.debug", "true");
+        log.info("Starting JavaMailSender configuration");
 
-        return mailSender;
+        try {
+            JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
+
+            mailSender.setHost("smtp.gmail.com");
+            mailSender.setPort(587);
+            mailSender.setUsername(emailUsername);
+            mailSender.setPassword(emailPassword);
+
+            Properties props = mailSender.getJavaMailProperties();
+            props.put("mail.transport.protocol", "smtp");
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.debug", "true");
+
+            log.info("JavaMailSender configured successfully");
+            return mailSender;
+
+        } catch (Exception e) {
+            log.error("Error while configuring JavaMailSender", e);
+            throw new MessagingException("Failed to configure email service", e);
+        }
     }
 }

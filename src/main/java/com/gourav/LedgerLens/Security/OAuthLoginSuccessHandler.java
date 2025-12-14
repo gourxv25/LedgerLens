@@ -8,7 +8,6 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 // <-- ADD THESE IMPORTS -->
@@ -87,15 +86,18 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
                     token.getName() // The principal's name
             );
 
-            if (client.getRefreshToken() != null) {
+            if (client == null) {
+                System.out.println("--> ERROR: OAuth2AuthorizedClient was null for: " + email);
+            } else if (client.getRefreshToken() != null) {
                 String refreshToken = client.getRefreshToken().getTokenValue();
+                System.out.println("--> Got refresh token, length=" + refreshToken.length() + " for: " + email);
                 user.setRefreshToken(refreshToken);
                 userRepository.save(user); // Save the user with the new refresh token
                 gmailSetUpService.startWatchingUserInbox(user);
                 System.out.println("--> Successfully saved refresh token for: " + email);
             } else {
-                System.out.println("--> Refresh token was null for user: " + email + ". " +
-                        "Is access_type=offline and prompt=consent set in application.yml?");
+                System.out.println("--> ERROR: Refresh token was null for user: " + email + ". " +
+                        "Make sure access_type=offline and prompt=consent are set in authorization-uri!");
             }
         }
         // <-- END OF NEW LOGIC -->
@@ -122,6 +124,6 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
 
 
         getRedirectStrategy().sendRedirect(request, response,
-                "http://localhost:5173/UploadAndDashboard");
+                "http://localhost:5173/dashboard");
     }
 }
