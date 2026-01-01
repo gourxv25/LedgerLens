@@ -1,8 +1,9 @@
-package com.gourav.LedgerLens.Service;
+package com.gourav.LedgerLens.Service.ServiceImp;
 
 import com.google.api.services.gmail.Gmail;
 import com.gourav.LedgerLens.Domain.Entity.User;
 import com.gourav.LedgerLens.Repository.UserRepository;
+import com.gourav.LedgerLens.Service.GmailClientFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

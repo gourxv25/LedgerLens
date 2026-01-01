@@ -1,6 +1,6 @@
 package com.gourav.LedgerLens.Controller;
 
-import com.gourav.LedgerLens.Service.GmailWatchStopService;
+import com.gourav.LedgerLens.Service.ServiceImp.GmailWatchStopService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;

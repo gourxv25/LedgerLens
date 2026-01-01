@@ -23,8 +23,6 @@ public class EmailConfig {
     public JavaMailSender javaMailSender() throws MessagingException {
 
         log.info("Starting JavaMailSender configuration");
-
-        try {
             JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
 
             mailSender.setHost("smtp.gmail.com");
@@ -38,12 +36,12 @@ public class EmailConfig {
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.debug", "true");
 
+            // Timeouts (important)
+            props.put("mail.smtp.connectiontimeout", "5000");
+            props.put("mail.smtp.timeout", "5000");
+            props.put("mail.smtp.writetimeout", "5000");
+
             log.info("JavaMailSender configured successfully");
             return mailSender;
-
-        } catch (Exception e) {
-            log.error("Error while configuring JavaMailSender", e);
-            throw new MessagingException("Failed to configure email service", e);
-        }
     }
 }
