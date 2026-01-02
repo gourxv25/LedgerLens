@@ -31,7 +31,7 @@ public class GmailSetUpServiceImp implements GmailSetUpService {
     public void startWatchingUserInbox(User user) throws IOException {
         try{
             log.info("Gmail watch set up ---> ");
-            Gmail gmail = gmailClientFactory.buildClient(user.getRefreshToken());
+            Gmail gmail = gmailClientFactory.buildClient(user.getRefreshToken(), user);
 
             WatchRequest watchRequest = new WatchRequest()
                     .setLabelIds(List.of("INBOX"))

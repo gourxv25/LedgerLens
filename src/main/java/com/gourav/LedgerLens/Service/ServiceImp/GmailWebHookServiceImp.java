@@ -108,7 +108,7 @@ public class GmailWebHookServiceImp implements GmailWebhookService {
             return;
         }
 
-        Gmail gmail = gmailClientFactory.buildClient(user.getRefreshToken());
+        Gmail gmail = gmailClientFactory.buildClient(user.getRefreshToken(), user);
 
         ListHistoryResponse response = gmail.users().history()
                 .list("me")

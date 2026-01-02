@@ -1,5 +1,6 @@
 package com.gourav.LedgerLens.Controller;
 
+import com.gourav.LedgerLens.Exception.InvalidGmailGrantException;
 import io.jsonwebtoken.JwtException;
 import jakarta.mail.MessagingException;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Validation error: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.failure(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidGmailGrantException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidGmailGrantException(InvalidGmailGrantException ex) {
         log.warn("Validation error: {}", ex.getMessage());
         return ResponseEntity.badRequest().body(ApiResponse.failure(ex.getMessage()));
     }

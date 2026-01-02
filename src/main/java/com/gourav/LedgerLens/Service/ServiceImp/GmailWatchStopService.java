@@ -20,7 +20,7 @@ public class GmailWatchStopService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
 
-        Gmail gmail = gmailClientFactory.buildClient(user.getRefreshToken());
+        Gmail gmail = gmailClientFactory.buildClient(user.getRefreshToken(), user);
         gmail.users().stop("me").execute();
 
         System.out.println("Watch stopped for: " + email);
